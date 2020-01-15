@@ -258,19 +258,19 @@ function eprint(retval, text)
 
 function stderr(text)
 {
-	#if (ENVIRON["VERBOSE"] == "") return
+	#if (ENVIRON["JJ_DEBUG"] == "") return
 	print "\033[31m" text "\033[0m" >"/dev/stderr"
 }
 
 function debug_usr()
 {
-	if (ENVIRON["VERBOSE"] == "") return
+	if (ENVIRON["JJ_DEBUG"] == "") return
 	print "> " substr($0, 3) " <" >"/dev/stderr"
 }
 
 function debug_irc()
 {
-	if (ENVIRON["VERBOSE"] == "") return
+	if (ENVIRON["JJ_DEBUG"] == "") return
 	printf "\033[33m%s\033[0m ", cmd >"/dev/stderr"
 	if (nsource)
 		for (i=1; i<=nsource; i++)

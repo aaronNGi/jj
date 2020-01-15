@@ -96,6 +96,7 @@ See [Examples](#examples) for more advanced usage.
 |`IRC_PORT`|Connect using this port.|`6667`|
 |`IRC_REALNAME`|The real name to use. Can also be seen in `whois`.|`$USER`|
 |`IRC_USER`|The user name to use.|`$USER`|
+|`JJ_DEBUG`|When set, makes `jjc(1)` print debug output.|unset|
 
 When [Hooks](#hooks) are being run, in addition to inheriting the above variables, the following environment variables are also available to the called program:
 
