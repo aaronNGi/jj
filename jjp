@@ -1,0 +1,62 @@
+#!/usr/bin/awk -f
+
+BEGIN {
+	FS=" "
+	prevdate=""
+	if (length(ENVIRON["IRC_TERMTITLE"])) {
+		printf "\033]0;%s\a", ENVIRON["IRC_TERMTITLE"]
+	}
+}
+
+{
+	if (NF < 2) {
+		printf "\n%s", $0
+		next
+	}
+
+	# Split date into date[1] and time into date[2]
+	split(strftime("%a %b %d_%H:%M", $1), date, "_")
+
+	# Display date only when it actually changed
+	if (prevdate != date[1]) {
+		prevdate = date[1]
+		printf "%s\033[37m-- %s --\033[0m",
+			NR == 1 ? "\n" : "\n\n", date[1]
+	}
+
+	nickend=index($2, ">")
+	type=substr($2, nickend+1)
+	msg=substr($0, index($0, ">") + 2 + length(type))
+	nick=substr($2, 2, nickend-2)
+
+	# Handle ACTION
+	if (index(type, "a")) {
+		msg=nick " " msg
+		nick="*"
+	}
+
+	# Status message
+	if (nick == "-") {
+		printf "\n\033[30m%s %s\033[0m" \
+			, date[2], msg
+
+	}
+	# My message
+	else if (index(type, "*")) {
+		printf "\n\033[30m%s\033[0m \033[37m%s\033[0m %s" \
+			, date[2], nick, msg
+	}
+	# Other message mentioning me
+	else if (index(type, "!")) {	
+		printf "\n\a\033[33m%s\033[0m \033[35m%s\033[0m %s" \
+			, date[2], nick, msg
+	}
+	# Other message
+	else {
+		printf "\n\033[30m%s\033[0m \033[35m%s\033[0m %s" \
+			, date[2], nick, msg
+	}
+}
+END {
+	print ""
+}

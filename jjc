@@ -1,0 +1,1222 @@
+#!/usr/bin/awk -f
+#
+# This script parses irc messages and user input and maintains logs of all
+# channels and private messages.
+# Messages are read from stdin.  Messages prefixed with "u " are
+# considered user input, while "i " signals an irc message.  Processed
+# user input is printed to stdout.
+
+BEGIN {
+	# The individual parts of an irc messages are separated by
+	# space(s), so we set awks field separator accordingly.
+	FS=" "
+
+	# The casemap array holds the various casemapping flavors.  It
+	# also maps upper to lowercase characters.  We map A-Z to a-z
+	# here, while the rest of the characters, of a certain
+	# casemapping, are set while parsing the ISUPPORT messages in
+	# on_isupport().
+	# The uppercase_range and lowercase_range variables also get
+	# complimented depending on the servers casemapping.  They get
+	# used when checking whether or not a string contains any
+	# characters which would need folding.
+	casemap["ascii"]           = "A-Z a-z"
+	casemap["rfc1459"]         = "][\\~A-Z }{|^a-z"
+	casemap["strict"]          = "][\\A-Z }{|a-z"
+	casemap["strict_rfc1459"]  = casemap["strict"]
+	casemap["rfc1459_strict"]  = casemap["strict"]
+	casemap["uppercase_range"] = "A-Z"
+	casemap["lowercase_range"] = "a-z"
+	# A-Z -> a-z
+	for (local["i"]=65; local["i"]<91; local["i"]++)
+		casemap[sprintf("%c", local["i"])]=sprintf("%c",
+			local["i"] + 32)
+	delete local["i"]
+
+	# General settings and connection related state.
+	irc["connected"]     = 0
+	irc["away"]          = 0
+	irc["nick"]          = ENVIRON["IRC_NICK"]
+	irc["nick_lc"]       = irc_tolower(irc["nick"])
+	irc["user"]          = ENVIRON["IRC_USER"]
+	irc["name"]          = ENVIRON["IRC_REALNAME"]
+	irc["password"]      = ENVIRON["IRC_PASSWORD"]
+	irc["host"]          = ENVIRON["IRC_HOST"]
+	irc["network"]       = irc["host"]
+	irc["logdir"]        = ENVIRON["IRC_DIR"] "/" irc["host"]
+	irc["motdfile"]      = irc["logdir"] "/motd"
+
+	# The command array maps an event to a command name.  That name,
+	# appended to "prefix", is then used as command when calling
+	# an external event script via ext_command().
+	command["prefix"]    = "irc_on_"
+	command["add"]       = "add_channel"
+	command["connect"]   = "connect"
+	command["ctcp"]      = "ctcp"
+	command["highlight"] = "highlight"
+	command["invite"]    = "invite"
+	command["join"]      = "join"
+	command["kick"]      = "kick"
+	command["part"]      = "part"
+
+	# The support array stores information obtained from the ISUPPORT
+	# messages.
+	support["casemapping"] = "ascii"
+	support["chantypes"]   = "#&"
+	support["prefix"]      = "@+"
+	support["statusmsg"]   = ""
+
+	# Shell escape the logdir path.  Because all variables used in
+	# BEGIN will have global scope, an array variable is used.  That
+	# way it can be deleted later.
+	local["path"]=shell_escape(irc["logdir"] "/channels")
+
+	# Try to create the "channels" directory while also creating all
+	# parent directories as needed.
+	local["retval"]=system("mkdir -p -- " local["path"])
+
+	# If we fail to create the directory structure, there is no point
+	# in continuing.
+	if (local["retval"] == -1) {
+		eprint(1, "failed calling mkdir")
+	} else if (local["retval"] != 0) {
+		exit local["retval"]
+	}
+
+	# These were only temporary variables so let's delete them.
+	delete local["path"]
+	delete local["retval"]
+
+	# Initiate the irc login sequence which sends the PASS, NICK and
+	# USER messages to the server.
+	login(irc["nick"], irc["user"], irc["name"], irc["password"])
+}
+
+# Our parent process receives the raw irc messages and reads user input.
+# Before sending it to us, the read lines are marked with a leading "u"
+# and "i" for user and irc respectively.
+/^u / {
+	debug_usr()
+
+	# Ignore all user input until we are fully connected to the irc
+	# server, which is the case when all relevant ISUPPORT messages
+	# have been parsed.
+	if (!irc["connected"])
+		next
+
+	handle_user_input()
+
+	# All following code is specific to irc messages, so let's skip
+	# it.
+	next
+}
+
+function handle_user_input()
+{
+	# A message shorter than 3 characters is equal to "u ", meaning
+	# it's an empty message and we should ignore it.
+	if (length($0) < 3) return
+
+	# Commands are case-insensitive
+	cmd=tolower($2)
+
+	# Having saved the command, we can now remove the "u " prefix and
+	# command, resulting in $0 being only parameters.
+	sub(/^u *[^ ]+ ?/, "")
+
+	if (cmd == "") { print_out("Missing command") }
+	else if (cmd == "action")   { cmd_msg("ACTION") }
+	else if (cmd == "away")     { cmd_generic("AWAY", 0, 0) }
+	else if (cmd == "me")       { cmd_msg("ACTION") }
+	else if (cmd == "invite")   { cmd_generic("INVITE", 2, 2) }
+	else if (cmd == "join")     { cmd_generic("JOIN", 1, 2) }
+	else if (cmd == "kick")     { cmd_generic("KICK", 2, 0, 3) }
+	else if (cmd == "list")     { cmd_list() }
+	else if (cmd == "ls")       { cmd_list() }
+	else if (cmd == "message")  { cmd_msg("PRIVMSG") }
+	else if (cmd == "msg")      { cmd_msg("PRIVMSG") }
+	else if (cmd == "notice")   { cmd_msg("NOTICE") }
+	else if (cmd == "names")    { cmd_generic("NAMES", 1, 1) }
+	else if (cmd == "nick")     { cmd_generic("NICK", 1, 1) }
+	else if (cmd == "mode")     { cmd_generic("MODE", 1) }
+	else if (cmd == "part")     { cmd_part() }
+	else if (cmd == "quit")     { cmd_quit() }
+	else if (cmd == "raw")      { cmd_raw() }
+	else if (cmd == "topic")    { cmd_generic("TOPIC", 1, 1) }
+	else if (cmd == "topicset") { cmd_generic("TOPIC", 1, 0, 2) }
+	else if (cmd == "whois")    { cmd_generic("WHOIS", 1, 0) }
+	else { print_out("Unknown command: " cmd) }
+}
+
+# Before actual handling of the various message types, the raw irc
+# messages get parsed here.
+/^i / {
+	# Remove the trailing carriage return which all irc messages
+	# usually have.
+	sub(/\r$/, "")
+
+	parse_irc_input()
+	debug_irc()
+}
+
+# Dispatch the handling of parsed messages to separate functions.
+cmd == "JOIN"         { on_join();       next }
+cmd == "QUIT"         { on_quit();       next }
+cmd == "PART"         { on_part();       next }
+cmd == "MODE"         { on_mode();       next }
+cmd == "PRIVMSG"      { on_msg();        next }
+cmd == "NICK"         { on_nick();       next }
+cmd == "NOTICE"       { on_msg();        next }
+cmd == "TOPIC"        { on_topic();      next }
+cmd == "KICK"         { on_kick();       next }
+cmd == "PING"         { on_ping();       next }
+cmd == "PONG"         {                  next }
+cmd ~ /^33[23]$/      { on_topicinfo();  next }
+cmd == "353"          { on_names();      next }
+cmd == "366"          { on_names();      next }
+cmd == "INVITE"       { on_invite();     next }
+cmd == "301"          { on_whois();      next }
+cmd ~ /^31[1234789]$/ { on_whois();      next }
+cmd ~ /^30[56]$/      { on_away();       next }
+cmd == "221"          { on_modereply();  next }
+cmd ~ /^32[49]$/      { on_modereply();  next }
+cmd == "401"          { on_nosuchnick(); next }
+cmd == "433"          { on_nickinuse();  next }
+cmd == "432"          { on_erroneous();  next }
+cmd ~ /^37[256]$/     { on_motd();       next }
+cmd == "001"          { on_welcome();    next }
+cmd == "004"          { on_myinfo();     next }
+cmd == "005"          { on_isupport();   next }
+                      { on_generic();    next }
+
+# Split irc messages into the global arrays "tag", "source" and "param".
+# The irc command (name or numerical) is stored in the global variable
+# "cmd".  All arrays have a corresponding variable holding the number of
+# array elements.  They are called ntag, nsource and nparam.
+function parse_irc_input(   field, i, line, has_trailing, trailing)
+{
+	# Skip the "i " prefix.
+	field=2
+
+	# Parse tags.
+	if ($field ~ /^@/) {
+		ntag=split(substr($field, 2), tag, /;/)
+		field++
+	} else {
+		ntag=0
+	}
+
+	# Parse source.
+	if ($field ~ /^ *:/) {
+		nsource=split(substr($field, 2), source, /[@!]/)
+		field++
+	} else {
+		nsource=0
+	}
+
+	cmd=toupper($field)
+	field++
+
+	# In order to be able to strip everything up to the trailing
+	# parameter, which starts with " :", we first have to strip the
+	# same prefix from the source field.  It should be the first
+	# occurence if there is a source field.
+	line=$0
+	if (nsource)
+		sub(/ *:/, " ", line)
+
+	# Find and extract the trailing parameter.
+	if (i=index(line, " :")) {
+		has_trailing=1
+		trailing=substr(line, i+2)
+
+		# Remove the trailing parameter from the line.
+		line=substr(line, 1, i-1)
+	}
+	$0=line
+
+	# Remove all fields which have been parsed already.
+	for (i=1; i<field; i++)
+		$i=""
+
+	# At this point, only parameters should be remaining.  Split them
+	# into the param array.
+	nparam=split($0, param, " ")
+
+	# Push the trailing parameter to the end of the parameter array.
+	if (has_trailing)
+		param[++nparam]=trailing
+}
+
+## General functions #####################################################
+
+function eprint(retval, text)
+{
+	print text >"/dev/stderr"
+	exit retval
+}
+
+function stderr(text)
+{
+	#if (ENVIRON["VERBOSE"] == "") return
+	print "\033[31m" text "\033[0m" >"/dev/stderr"
+}
+
+function debug_usr()
+{
+	if (ENVIRON["VERBOSE"] == "") return
+	print "> " substr($0, 3) " <" >"/dev/stderr"
+}
+
+function debug_irc()
+{
+	if (ENVIRON["VERBOSE"] == "") return
+	printf "\033[33m%s\033[0m ", cmd >"/dev/stderr"
+	if (nsource)
+		for (i=1; i<=nsource; i++)
+			printf "\033[30ms%d=\033[0m%s ",
+				i, source[i] >"/dev/stderr"
+
+	if (nparam)
+		for (i=1; i<=nparam; i++)
+			printf "\033[30mp%d=\033[37m%s\033[0m ",
+				i, param[i] >"/dev/stderr"
+
+	printf "\n" >"/dev/stderr"
+}
+
+function send(text)
+{
+	printf "%s\r\n", text
+}
+
+function print_out(text, chan, nick, suffix,   file)
+{
+	# Because "chan" will be used as name for the logfile, we can't
+	# allow it to contain slashes and the null character.  Might as
+	# well remove all control characters while we are at it.
+	gsub("[/[:cntrl:]]", "", chan)
+
+	# Figure out the target file.
+	if (chan == "" || chan == irc["host"])
+		file=irc["logdir"] "/server.log"
+	else
+		file=irc["logdir"] "/channels/" chan ".log"
+
+	if (nick == "" || nick == irc["host"])
+		nick="-"
+
+	printf "%u <%s>%s %s\n", systime(), nick, suffix, text >>file
+	fflush(file)
+}
+
+function login(nick, user, name, pass)
+{
+	if (pass != "") send("PASS " pass)
+	send("NICK " nick)
+	send("USER " user " localhost * :" name)
+}
+
+function irc_strcmp(a, b)
+{
+	if (a == b)
+		return 1
+	else if (length(a) != length(b))
+		return 0
+	else
+		return irc_tolower(a) == irc_tolower(b)
+}
+
+function irc_tolower(str,   char, i, lower)
+{
+	# Nothing to do on all lowercase strings.
+	if (str !~ "[" casemap["uppercase_range"] "]")
+		return str
+
+	while (char=substr(str, ++i, 1)) {
+		if (char in casemap)
+			lower=lower casemap[char]
+		else
+			lower=lower char
+	}
+
+	return lower
+}
+
+function set_nick(nick)
+{
+	irc["nick"]=nick
+	irc["nick_lc"]=irc_tolower(nick)
+	return 1
+}
+
+function is_me(nick)
+{
+	return irc_strcmp(nick, irc["nick"])
+}
+
+function is_chan(str)
+{
+	# Return the position of the first character of "str" in the
+	# variable storing the supported channel prefixes.  Returns 0 if
+	# there is no occurence.
+	return index(support["chantypes"], substr(str, 1, 1))
+}
+
+function nick_in_chan(nick, chan)
+{
+	# Return the position of the first occurence of " nick ".  Returns
+	# 0 if it can't be found.  Because nicknames in the channels
+	# array are surrounded by spaces, we will always be able to match
+	# whole nicks, instead of getting a partial match when searching
+	# for "john" while that channel also has a user called "johndoe".
+	return index(channels[irc_tolower(chan)],
+		" " irc_tolower(nick) " ")
+}
+
+function _chan_add(str, chan)
+{
+	# Channel has no users.  We can just set the channel to "str"
+	# instead of appending it.
+	if (channels[chan] == "")
+		channels[chan]=str
+	# Channel does not contain "str", append it.
+	else if (!index(channels[chan], str))
+		channels[chan]=channels[chan] str
+	# Channel already contains "str".
+	else
+		return 0
+
+	return 1
+}
+
+function _chan_del(str, chan,   pos)
+{
+	# Only user in the channel is "str".  Set the channel to an empty
+	# string.
+	if (channels[chan] == str) {
+		channels[chan]=""
+		return 1
+	# "str" is not in the channel.
+	} else if (!(pos=index(channels[chan], str))) {
+		return 0
+	}
+
+	# Do the string stitching by extracting everything before and
+	# after "str".
+	channels[chan]=substr(channels[chan], 1, pos-1) \
+		substr(channels[chan], pos+length(str))
+
+	return 1
+}
+
+function add_nick_to_chan(nick, chan, text)
+{
+	nick=irc_tolower(nick)
+	chan=irc_tolower(chan)
+
+	if (text)
+		print_out(text, chan)
+
+	# If it's us who is to be added to a channel, it means us joining
+	# triggered this function.  Instead of adding our nick now, we let
+	# the next names reply (353) populate the list of nicknames.
+	if (!channels[chan])
+		return 1
+	else
+		return _chan_add(" " nick " ", chan)
+}
+
+function delete_nick_from_chan(nick, chan, text)
+{
+	nick=irc_tolower(nick)
+	chan=irc_tolower(chan)
+
+	if (text)
+		print_out(text, chan)
+
+	# If it's us who is to be deleted, delete the entire channel
+	# instead.
+	if (!is_chan(chan) || nick == irc["nick_lc"]) {
+		print_out("Channel closed", chan)
+		delete channels[chan]
+		return 1
+	} else {
+		return _chan_del(" " nick " ", chan)
+	}
+}
+
+function delete_nick_from_all_chans(nick, text,   chan, str)
+{
+	nick=irc_tolower(nick)
+	str=" " nick " "
+
+	for (chan in channels) {
+		if (!index(channels[chan], str))
+			continue
+
+		if (text)
+			print_out(text, chan)
+
+		# If we are leaving a channel or removing a nickname from
+		# private message channels, delete the entire channel
+		# instead.
+		if (!is_chan(chan) || nick == irc["nick_lc"]) {
+			print_out("Channel closed", chan)
+			delete channels[chan]
+			continue
+		}
+
+		_chan_del(str, chan)
+	}
+	return 1
+}
+
+function rename_nick_in_all_chans(nick, new, text,   chan, me)
+{
+	me=is_me(new)
+
+	nick=" " irc_tolower(nick) " "
+	new=" " irc_tolower(new) " "
+	chan=irc_tolower(chan)
+
+	for (chan in channels) {
+		if (!index(channels[chan], nick))
+			continue
+
+		if (text)
+			print_out(text, chan)
+
+		# Close private message channels when others rename.
+		if (!is_chan(chan) && !me) {
+			print_out("Channel closed", chan)
+			delete channels[chan]
+			continue
+		}
+
+		_chan_del(nick, chan)
+		_chan_add(new, chan)
+	}
+	return 1
+}
+
+function get_nickuserhost()
+{
+	# Return "nick [user@host.org]".
+	if (nsource > 1)
+		return source[1] " [" source[2] "@" source[3] "]"
+	else
+		return source[1]
+}
+
+function shell_escape(str)
+{
+	# foo'bar -> 'foo'\''bar'.
+	gsub(/'/, "'\\''", str)
+	return "'" str "'"
+}
+
+function ext_command(name, chan, instigator, text,
+	casemapping, env, cmd)
+{
+	if (!(name in command))
+		return
+
+	# Assemble the final command name by adding the prefix and looking
+	# up the command.
+	name=command["prefix"] command[name]
+
+	# Can the command be found in the users $PATH?
+	retval=system("command -v " name " 1>/dev/null")
+
+	if (retval == -1)
+		print_out("Failed calling external command '" command "'")
+	# Command wasn't found.
+	else if (retval != 0)
+		return 0
+
+	# Construct the environment for the external command.
+	env=sprintf("IRC_ME=%s IRC_NETWORK=%s IRC_TEXT=%s",
+		shell_escape(irc["nick"]),
+		shell_escape(irc["network"]),
+		shell_escape(text))
+	env=env sprintf(" IRC_WHERE=%s IRC_WHO=%s",
+		shell_escape(chan),
+		shell_escape(instigator))
+
+	casemapping=casemap["uppercase_range"] " " \
+		casemap["lowercase_range"]
+
+	env=env sprintf(" IRC_CASEMAPPING=%s", shell_escape(casemapping))
+
+	if (irc["away"])
+		env=env " IRC_AWAY=1"
+
+	# Exec the command using the additional environment variables.
+	cmd=sprintf("exec 1>/dev/null env %s %s &", env, name)
+	system(cmd)
+}
+
+## User commands #########################################################
+
+function cmd_list(   chan, str)
+{
+	if (NF) {
+		print_out(cmd ": too many arguments")
+		return
+	} else if (!length(channels)) {
+		print_out("No open channels")
+		return
+	}
+	for (chan in channels)
+		str=str " " chan
+
+	print_out("Open channels:" str)
+}
+
+function cmd_msg(realcmd,   new, suffix, target, text)
+{
+	if(!NF) {
+		print_out(cmd ": not enough arguments")
+		return
+	} else if (index($1, ",")) {
+		print_out(cmd ": multiple targets is unsupported")
+		return
+	}
+
+	# Casefold and remove slashes/control characters from the target.
+	# We don't want them to end up in the logfile path.
+	target=irc_tolower($1)
+	gsub("[/[:cntrl:]]", "", target)
+
+	# Remove the first (target) argument from the record.
+	sub("^ *[^ ]+ ?", "")
+
+	# Allow whitespace as only argument.  Also sets NF to 1.
+	if (!NF && $0 != "")
+		$1=$0
+
+	# Message to channel.
+	if (is_chan(target)) {
+		if (!NF) {
+			print_out(cmd ": not enough arguments")
+			return
+		} else if (!(target in channels)) {
+			print_out(cmd ": cannot send to channel " \
+				target ": not joined")
+			return
+		}
+	# Message to a user with existing channel.
+	} else if (target in channels) {
+		if (!NF) {
+			print_out(cmd ": channel " target \
+				" already joined")
+			return
+		}
+	# Message to a user.
+	} else {
+		# Create the channel by setting its members to us and the
+		# target.
+		channels[target]=" " target "  " irc["nick_lc"] " "
+		print_out("Added channel " target)
+		new=1
+	}
+
+	# We only send the command and print it out when we actually have
+	# a message.  This is necessary because we allow omitting the
+	# message when the target is a user, which is used to create
+	# private message channels without actually sending anything.
+	if (NF) {
+		if (realcmd == "ACTION") {
+			text="\x01ACTION " $0 "\x01"
+			realcmd="PRIVMSG"
+			suffix="*a"
+		} else if (realcmd == "NOTICE") {
+			text=$0
+			suffix="*n"
+		} else {
+			text=$0
+			suffix="*"
+		}
+		send(realcmd " " target " :" text)
+
+		# Simulate our own message.
+		print_out($0, target, irc["nick"], suffix)
+
+		if (new)
+			ext_command("add", target, irc["nick"], $0)
+	} else if (new)
+		ext_command("add", target, irc["nick"])
+}
+
+function cmd_generic(realcmd, arg_min, arg_max, trailing_arg,
+	colon, field, pos, word)
+{
+	if (arg_min == "") arg_min=0
+	if (arg_max == "") arg_max=0
+	if (arg_max && arg_min > arg_max) return
+
+	# Allow only whitespace as argument; Also sets NF to 1.
+	if (!NF && $0 != "")
+		$1=$0
+
+	if (NF < arg_min) {
+		print_out(cmd ": not enough arguments")
+		return
+	} else if (arg_max && NF > arg_max) {
+		print_out(cmd ": too many arguments")
+		return
+	}
+
+	# To mark field n and everything after as one parameter, a colon
+	# has to be added before it.
+	if (trailing_arg == 1) {
+		$0=":" $0
+	# To prevent the truncation of whitespace, which happens whenever
+	# one of the field variables is assigned a new value, we can't
+	# simply prepend a colon to field $n and then use $0.  We have to
+	# cut $0 in half at the desired colon position.  The following
+	# code finds that position and does the splicing.
+	} else if (trailing_arg && trailing_arg <= NF) {
+		field=1
+		word=0  # Wether or not we are in a word or inbetween.
+
+		# Find the first character of "trailing_arg".
+		for (pos=1; pos<=length($0); pos++) {
+			if (substr($0, pos, 1) == " ") {
+				# If we just were in a word and are now on
+				# the first space after it, one more
+				# field is done.
+				if (word)
+					field++
+				word=0
+			} else {
+				word=1
+			}
+
+			if (field == trailing_arg) {
+				pos++
+				break
+			}
+
+		}
+		$0=substr($0, 1, pos-1) colon substr($0, pos)
+	}
+	send(realcmd " " $0)
+}
+
+function cmd_part(   chan)
+{
+	if (!NF) {
+		print_out(cmd ": not enough arguments")
+		return
+	}
+	chan=irc_tolower($1)
+
+	# Parting a private message channel just closes it, while parting
+	# a normal channel actually sends the PART command.
+	if (!is_chan(chan)) {
+		# Only actual channels have a trailing reason parameter.
+		if (NF > 1) {
+			print_out(cmd ": too many arguments")
+			return
+		} else if (!(chan in channels)) {
+			print_out(cmd ": channel " $1 " does not exist")
+			return
+		}
+		delete channels[chan]
+		print_out("Channel closed", chan)
+	} else {
+		cmd_generic("PART", 1, 0, 2)
+	}
+}
+
+function cmd_quit()
+{
+	print_out("Quitting...")
+
+	if ($0 == "")
+		send ("QUIT")
+	else
+		send ("QUIT :" $0)
+}
+
+function cmd_raw()
+{
+	if (!NF)
+		print_out(cmd ": not enough arguments")
+	else
+		send($0)
+}
+
+## irc commands ##########################################################
+
+function on_generic(   i, text)
+{
+	#:src 330 to from data :[is/was] logged in as
+	#:src 378 to from :is connecting from ...
+	#:src 671 to from :is using a secure connection
+	if (cmd == "330") {
+		param[2]=param[2] " " param[4] " " param[3]
+		nparam=nparam-2
+	} else if (cmd == "378" || cmd == "671") {
+		param[2]=param[2] " " param[3]
+		nparam--
+	}
+
+	for (i=is_me(param[1]) ? 2 : 1; i<=nparam; i++)
+		text=text " " param[i]
+
+	print_out(substr(text, 2))
+}
+
+function on_msg(   char, ctcp, highlight, after, before,
+	new, pos, suffix, target, text, user)
+{
+	# Privmsgs/notices from the server go into server.log.
+	if (!nsource || source[1] == irc["host"]) {
+		source[1]=""
+		target=""
+	# Privmsgs to me go into the senders "channel".
+	} else if (is_me(param[1])) {
+		target=irc_tolower(source[1])
+	# Privmsgs to a channel.
+	} else {
+		target=irc_tolower(param[1])
+
+		# Extract leading status message characters from target.
+		if (support["statusmsg"]) {
+			# Find the first char not in "statusmsg".
+			for (pos=1; pos <= length(target); pos++) {
+				char=substr(target, pos, 1)
+				if (!index(support["statusmsg"], char))
+					break
+			}
+			if (pos > 1) {
+				suffix="s:" substr(target, 1, pos-1) ":"
+				target=substr(target, pos)
+			}
+		}
+	}
+
+	user=get_nickuserhost()
+	text=param[nparam]
+
+	# CTCP/action
+	if (text ~ /^\x01.*\x01$/) {
+		if (text ~ /^\x01ACTION /) {
+			suffix=suffix "a"
+			sub(/\x01ACTION /, "", text)
+		} else {
+			suffix=suffix "c"
+			ctcp=1
+		}
+		gsub(/\x01/, "", text)
+	}
+
+	if (cmd == "NOTICE")
+		suffix=suffix "n"
+
+	# Create new private message channel if necessary.
+	if (target && !(target in channels)) {
+		channels[target]=" " target "  " irc["nick_lc"] " "
+		print_out("Added channel " target, "", "", "!")
+		new=1
+	}
+
+	if (is_me(source[1])) {
+		suffix=suffix "*"
+	# Check if our nick appears in the text of another users message.
+	} else if (pos=index(irc_tolower(text), irc["nick_lc"])) {
+		# Sort of match only full words, but allow a leading @
+		# or whitespace as well as trailing punctuation and
+		# whitespace.
+		before=substr(" " text, pos, 1)
+		after=substr(text " ", pos + length(irc["nick"]), 1)
+
+		if ( \
+			before ~ /[@[:space:]]/ && \
+			after ~ /[:.,!?[:space:]]/ \
+		) {
+			suffix=suffix "!"
+			highlight=1
+			print_out("Highlighted by " user " in " target,
+				"", "", "!")
+		}
+	}
+
+	print_out(text, target, source[1], suffix)
+
+	# Call external command.  Newly added private message channels
+	# have precedence over highlights.
+	if (new)
+		ext_command("add", target, user, text)
+	else if (highlight)
+		ext_command("highlight", target, user, text)
+
+	if (ctcp)
+		ext_command("ctcp", target, user, text)
+}
+
+function on_mode(   i, user, target, text)
+{
+	user=get_nickuserhost()
+
+	if (is_me(source[1]) && is_me(param[1])) {
+		target=""
+		text="You have set"
+	} else {
+		target=irc_tolower(param[1])
+		text=user " has set"
+	}
+	# append all params
+	for (i=1; i<=nparam; i++)
+		text=text " " param[i]
+
+	print_out(text, target)
+}
+
+function on_join(   nick, chan, user)
+{
+	nick=source[1]; user=get_nickuserhost(); chan=param[1]
+
+	add_nick_to_chan(nick, chan, user " has joined " chan)
+
+	if (is_me(nick)) {
+		print_out("Added channel " target)
+		ext_command("join", chan, user, "")
+	}
+}
+
+function on_part(   nick, chan, user, text, reason)
+{
+	nick=source[1]; user=get_nickuserhost(); chan=param[1]
+
+	text=user " has left " chan
+
+	# part reason
+	if (nparam > 1 && length(param[nparam])) {
+		reason=param[nparam]
+		text=text " (" reason ")"
+	}
+
+	delete_nick_from_chan(nick, chan, text)
+
+	if (is_me(nick))
+		ext_command("part", chan, user, reason)
+}
+
+function on_nick(   nick, new, user)
+{
+	nick=source[1]; user=get_nickuserhost(); new=param[nparam]
+
+	if (is_me(nick)) {
+		print_out("You are now known as " new)
+		set_nick(new)
+	}
+	rename_nick_in_all_chans(nick, new, \
+		user " has changed nick to " new)
+}
+
+function on_kick(   chan, user, kicked, text, reason)
+{
+	user=get_nickuserhost(); chan=param[1]; kicked=param[2]
+
+	text=user " has kicked " kicked
+
+	if (nparam > 2 && length(param[nparam])) {
+		reason=param[nparam]
+		text=text " (" reason ")"
+	}
+
+	delete_nick_from_chan(kicked, chan, text)
+
+	if (is_me(kicked))
+		ext_command("kick", chan, user, reason)
+}
+
+function on_invite(   chan, user, invitee, text)
+{
+	user=get_nickuserhost(); invitee=param[1]; chan=param[nparam]
+
+	text=user " has invited you to join " chan
+
+	print_out(text, "", "", "!")
+
+	ext_command("invite", "", user)
+}
+
+function on_topic(   chan, user, topic, text)
+{
+	user=get_nickuserhost()
+	chan=param[nparam-1]
+	topic=param[nparam]
+
+	if (length(topic))
+		text=user " has set the topic of " chan " to: " topic
+	else
+		text=user " has unset the topic of " chan
+
+	print_out(text, irc_tolower(chan))
+}
+
+function on_topicinfo(   chan, text)
+{
+	chan=param[2]
+	text="Topic of " chan
+	if (cmd == "332") {
+		text=text ": " param[3]
+	} else if (cmd == "333") {
+		text=text " set by " param[3]
+		if (nparam > 3)
+			text=text " on " param[4]
+	}
+	print_out(text)
+}
+
+function on_quit(   chan, nick, user, text)
+{
+	nick=source[1]
+	user=get_nickuserhost()
+
+	text=user " has quit"
+
+	# quit reason
+	if (nparam && length(param[nparam]))
+		text=text " (" param[nparam] ")"
+
+	delete_nick_from_all_chans(nick, text)
+}
+
+function on_ping(   trailing)
+{
+	if (nparam)
+		trailing=param[nparam]
+
+	send("PONG :" trailing)
+}
+
+function on_names(    arr, chan, i, key, name, nick, pre)
+{
+	if (cmd == "353") {
+		chan=irc_tolower(param[nparam-1])
+		# split all names
+		split(param[nparam], arr, " ")
+
+		# loop names and sort them by status
+		for (i in arr) {
+			name=arr[i]
+			pre=substr(name, 1, 1)
+			# special status (op/voice)?
+			if (index(support["prefix"], pre)) {
+				nick=substr(name, 2)
+				key=chan pre
+				names[key]=names[key] " " name
+			} else {
+				nick=name
+				key=chan "normal"
+				names[key]=names[key] " " name
+			}
+			names[chan]=names[chan] " " nick " "
+		}
+	} else {  # end of names list
+		chan=irc_tolower(param[2])
+		split(support["prefix"], arr, "")
+
+		# concat all names, sorted by status
+		for (i=1; i<=length(arr); i++) {
+			pre=arr[i]
+			names[all]=names[all] names[chan pre]
+			delete names[chan pre]
+		}
+		if (names[chan "normal"]) {
+			names[all]=names[all] names[chan "normal"]
+			delete names[chan "normal"]
+		}
+
+		# when a channels list of nicks is still empty, we just
+		# joined this channel
+		if (!channels[chan])
+			channels[chan]=irc_tolower(names[chan])
+
+		delete names[chan]
+
+		print_out("Names for " param[2] ": " \
+			substr(names[all], 2))
+
+		delete names[all]
+	}
+}
+
+function on_whois(    text)
+{
+	# RPL_AWAY
+	if (cmd == "301") {
+		text=param[2] " is away: " param[3]
+	# RPL_WHOISUSER | RPL_WHOWASUSER
+	} else if (cmd == "311" || cmd == "314") {
+		text=sprintf("%s [%s@%s] is %s",
+			param[2], param[3], param[4], param[6])
+	# RPL_WHOISSERVER
+	} else if (cmd == "312") {
+		text=param[2] " on " param[3]
+		if (length(param[4]))
+			text=text " " param[4]
+	# RPL_WHOISOPERATOR
+	} else if (cmd == "313") {
+		text=param[2] " " param[3]
+	# RPL_WHOISIDLE
+	} else if (cmd == "317") {
+		# We can't handle all the weird stuff some ircd's do
+		if (nparam > 5) {
+			on_generic()
+			return
+		}
+		text=param[2] " is " param[3] " " param[nparam]
+		if (nparam > 4)
+			text=text ": " param[4]
+	# RPL_WHOISCHANNELS
+	} else if (cmd == "319") {
+		text=param[2] " is in " param[nparam]
+	# RPL_ENDOFWHOIS
+	} else if (cmd == "318") {
+		return
+	}
+
+	print_out(text)
+}
+
+function on_motd(   text)
+{
+	text=param[nparam]
+
+	print text >irc["motdfile"]
+	if (cmd == "376")
+		close(irc["motdfile"])
+}
+
+function on_welcome(   nick, text)
+{
+	nick=param[1]
+
+	irc["connected"]=1
+	set_nick(nick)
+
+	if (nparam > 1)
+		text=param[nparam]
+	else
+		text="Welcome to the IRC Network, " nick
+
+	print_out(text)
+}
+
+function on_myinfo()
+{
+	if (nparam >= 2)
+		irc["host"]=param[2]
+}
+
+function on_isupport(   arr, i, j, pos, var, val)
+{
+	# parse all properties and split on =
+	for (i in param) {
+		if (pos=index(param[i], "=")) {
+			var=substr(param[i], 1, pos-1)
+			val=substr(param[i], pos+1)
+		} else {
+			var=param[i]
+			val=var
+		}
+
+		var=toupper(var)
+
+		if (var == "CASEMAPPING") {
+			if (!(val in casemap))
+				return
+
+			supprt["casemapping"]=val
+			split(casemap[val], arr, " ")
+			casemap["uppercase_range"]=arr[1]
+			casemap["lowercase_range"]=arr[2]
+
+			# map uppercase to lowercase by looping over
+			# all characters of the uppercase range except
+			# the last 3 (A-Z)
+			for (j=1; j<=length(arr[1])-3; j++)
+				casemap[substr(arr[1], j, 1)]= \
+					substr(arr[2], j, 1)
+
+			irc["isupport_done"]++
+
+		} else if (var == "NETWORK") {
+			irc["network"]=val
+			irc["isupport_done"]++
+		} else if (var == "CHANTYPES") {
+			support["chantypes"]=val
+			irc["isupport_done"]++
+		} else if (var == "PREFIX") {
+			if (pos=index(val, ")"))
+				support["prefix"]=substr(val, pos+1)
+			irc["isupport_done"]++
+		} else if (var == "STATUSMSG") {
+			support["statusmsg"]=val
+		}
+	}
+	if (irc["isupport_done"] == 4) {
+		ext_command("connect")
+		delete irc["isupport_done"]
+	}
+}
+
+function on_modereply()
+{
+	# RPL_UMODEIS
+	if (cmd == "221") {
+		print_out("Your mode is " param[2])
+	# RPL_CHANNELMODEIS
+	} else if (cmd == "324") {
+		print_out("Mode of " param[2] " is " param[3])
+	# RPL_CREATIONTIME
+	} else if (cmd == "329") {
+		print_out("Channel " param[2] " created on " param[3])
+	}
+}
+
+function on_away()
+{
+	irc["away"]=cmd == "305" ? 0 : 1
+	print_out(param[nparam])
+}
+
+function on_nickinuse()
+{
+	if (!irc["connected"]) {
+		irc["nick"]=irc["nick"] "-"
+		send("NICK " irc["nick"])
+	} else {
+		print_out(param[nparam-1] ": " param[nparam])
+	}
+}
+
+function on_nosuchnick(   nick, nick_lc, text)
+{
+	nick=param[nparam-1]
+	nick_lc=irc_tolower(nick)
+	text=param[nparam]
+
+	print_out(nick ": " text)
+
+	if (nick_lc in channels) {
+		print_out(nick ": " text, nick_lc)
+		delete channels[nick]
+		print_out("Channel closed", nick)
+	}
+}
+
+function on_erroneous()
+{
+	print_out(param[nparam-1] ": " param[nparam])
+
+	#if (!irc["connected"])
+	#	exit(1)
+}
