@@ -29,7 +29,7 @@ Having log files means you can use your systems text mangling utilities on them 
 
 Reading input via a named pipe allows you to also script the input side of the front-end. For instance, want to use your editor to write and send IRC messages? No problem, you can do that!
 
-Common tasks, like auto-joining channels after connecting to an IRC server for example, is not handled by jj itself, but instead is delegated to external programs/scripts. That gives the user a lot of freedom and power. To stay with the channel auto-join example: After successfully connecting, `jjc(1)` runs `irc_on_connect` if it's in `PATH`. That program can be written in your favorite languange. It could check the current host and depending on server, join different channels, auth with services etc. To give another example, the `irc_on_highlight` script could be used to send desktop/push notifications. See [Hooks](#hooks) for more details.
+Common tasks, e.g. auto-joining channels after connecting to an IRC server, are not handled by `jjc(1)` itself, but instead is delegated to external programs/scripts. That gives the user a lot of freedom and power in terms of scriptability. To stay with the channel auto-join example: After successfully connecting, `jjc(1)` runs `irc_on_connect` if it's in `PATH`. That program can be written in your favorite languange. It could check the current host and depending on server, join different channels, auth with services etc. To give another example, the `irc_on_highlight` script could be used to send desktop/push notifications. See [Hooks](#hooks) for more details.
 
 ### Dependencies
 
