@@ -258,8 +258,7 @@ function eprint(retval, text)
 
 function stderr(text)
 {
-	#if (ENVIRON["JJ_DEBUG"] == "") return
-	print "\033[31m" text "\033[0m" >"/dev/stderr"
+	print text >"/dev/stderr"
 }
 
 function debug_usr()
