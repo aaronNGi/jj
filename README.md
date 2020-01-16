@@ -234,14 +234,19 @@ tail -fn100 "$IRC_DIR/$IRC_HOST/channels/#channel.log" | jjc
 
 ```shell
 jji() {
+	: "${1:?Missing channel argument}"
+
 	fifo="$IRC_DIR/$IRC_HOST/in"
 	[ -p "$fifo" ] && [ -w "$fifo" ] ||
-		return
+		return 1
 
-	while printf '%s: ' "${1:?Missing channel argument}"; do
-		read -r line
+	while \
+		printf '%s: ' "$1" &&
+		IFS= read -r line ||
+		[ -n "$line" ]
+	do
 		printf "msg %s %s\n" "$1" "$line"
-	done >"fifo"
+	done >"$fifo"
 }
 jji \#channel
 ```
@@ -255,10 +260,10 @@ grep -m10 -v '^\d\{10\} <->' "$IRC_DIR/$IRC_HOST/channels/#channel.log"
 #### A Sample irc_on_connect
 
 ```sh
-#!/bin/sh
+#!/bin/sh -e
 
 fifo="$IRC_DIR/$IRC_HOST/in"
-[ -p "$fifo" ] && [ -w "$fifo" ] || exit 1
+[ -p "$fifo" ] && [ -w "$fifo" ]
 
 if [ "$IRC_HOST" = irc.freenode.org ]; then
 	printf 'raw PRIVMSG NickServ :IDENTIFY jilles foo\n' >"$fifo"
