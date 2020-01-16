@@ -840,12 +840,10 @@ function on_msg(   char, ctcp, highlight, after, before,
 		) {
 			suffix=suffix "!"
 			highlight=1
-			if (is_chan(target))
-				print_out("Highlighted by " user " in " target,
-					"", "", "!")
-			else
-				print_out("Highlighted by " user " in private message",
-					"", "", "!")
+			print_out("Highlighted by " user " in " \
+				(is_chan(target) \
+					? target : "private message"),
+				"", "", "!")
 		}
 	}
 
