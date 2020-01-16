@@ -64,6 +64,9 @@ static int dial(char *host, char *port) {
 	freeaddrinfo(res);
 	if(!r)
 		eprint("error: cannot connect to host '%s'\n", host);
+
+	printf("connected to %s\n", host);
+	fflush(stdout);
 	return srv;
 }
 
