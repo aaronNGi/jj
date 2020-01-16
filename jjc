@@ -942,7 +942,7 @@ function on_invite(   chan, user, invitee, text)
 
 	print_out(text, "", "", "!")
 
-	ext_command("invite", "", user)
+	ext_command("invite", chan, user)
 }
 
 function on_topic(   chan, user, topic, text)
