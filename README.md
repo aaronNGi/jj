@@ -241,7 +241,7 @@ jji() {
 		return 1
 
 	while \
-		printf '%s: ' "$1" &&
+		printf '%s: ' "$1" >&2 &&
 		IFS= read -r line ||
 		[ -n "$line" ]
 	do
