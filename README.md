@@ -108,7 +108,7 @@ When [Hooks](#hooks) are being run, in addition to inheriting the above variable
 |`IRC_WHERE`|In which channel the event happened. If applicable, empty otherwise.|
 |`IRC_WHO`|Who triggered this hook. If applicable, emtpy otherwise.|
 |`IRC_CASEMAPPING`|The servers casemapping. For e.g. rfc1459, its value would be `][\~A-Z }{\|^a-z`, which can be split on space and then used as arguments for `tr(1)` to properly casefold a string.|
-|`IRC_AWAY`|1 when we are marked away, 0 otherwise.|
+|`IRC_AWAY`|1 when we are marked away, unset otherwise.|
 
 ## Directory structure
 
