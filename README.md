@@ -224,13 +224,13 @@ The following programs are supported:
 
 ### Examples
 
-Watching logs:
+#### Watching Logs
 
 ```shell
 tail -fn100 "$IRC_DIR/$IRC_HOST/channels/#channel.log" | jjc
 ```
 
-A simple input method:
+#### A Simple Input Method
 
 ```shell
 jji() {
@@ -244,10 +244,25 @@ jji() {
 jji \#channel
 ```
 
-Print the last 10 user messages:
+#### Print the Last 10 User Messages:
 
 ```shell
 grep -m10 -v '^\d\{10\} <->' "$IRC_DIR/$IRC_HOST/channels/#channel.log"
+```
+
+#### A Sample irc_on_connect
+
+```sh
+#!/bin/sh
+
+fifo="$IRC_DIR/$IRC_HOST/in"
+[ -p "$fifo" ] && [ -w "$fifo" ] || exit 1
+
+if [ "$IRC_HOST" = irc.freenode.org ]; then
+	printf 'raw PRIVMSG NickServ :IDENTIFY jilles foo\n' >"$fifo"
+	sleep .5
+	printf 'join #kisslinux\n' >"$fifo"
+fi
 ```
 
 [ii homepage]: https://tools.suckless.org/ii/
