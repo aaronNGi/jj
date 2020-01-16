@@ -99,7 +99,7 @@ The output of that channel can then be read from `channels/#foobar.log`.
 See [Examples](#examples) for more advanced usage.
 
 
-## Directory structure
+## Directory Structure
 
 ```
 irc.freenode.org/
@@ -183,14 +183,14 @@ The general log format is:
 ```
 1579093317 <user123>n! Hello, World!
 ```
-The 1579093317 is the seconds since epoch (UTC). It can be converted to the current timezone and a readable format, which `jjc(1)` does automatically. The second part is the nickname of the message author with a suffix indicating message types. The rest is the actual message body.
+The "1579093317" is the seconds since epoch (UTC). It can be converted to the current timezone and a readable format, which `jjc(1)` does automatically. The second part is the nickname of the message author with a suffix indicating message types. The "Hello, World!" is the actual body of the message.
 
 `jjc(1)` uses the following message type indicators:
 
 * `*` - This is you. You are the author of this message.
-* `!` - Important information or your nick is mentioned in this message.
+* `!` - Important information in server.log or your nick is mentioned in this message.
 * `n` - This message is a notice.
-* `:<chars>:` - A channel message send only to users with a certain status in that channel (@%+ etc).
+* `:<status>:` - A channel message send only to users with a certain status in that channel (@%+ etc).
 * `c` - A CTCP message.
 * `a` - an ACTION message.
 
@@ -201,20 +201,20 @@ The 1579093317 is the seconds since epoch (UTC). It can be converted to the curr
 
 Certain events trigger the execution of external programs. Those programs have to be executable and in `PATH` and they are run with an altered environment (See: [Environment Variables](#environment-variables)).
 
-The following programs are searched for and executed:
+The following programs are supported:
 
 |Name|Trigger|
 |-|-|
-|`irc_on_add_channel`|A private message channel was created.|
+|`irc_on_add_channel`|A private message channel is created.|
 |`irc_on_connect`|Succesfully connecting to the server.|
 |`irc_on_ctcp`|Receiving a CTCP message.|
-|`irc_on_highlight`|Own nick was mentioned in a message.|
-|`irc_on_invite`|An invite is received.|
-|`irc_on_join`|A channel was joined.|
+|`irc_on_highlight`|Own nick is mentioned in a message.|
+|`irc_on_invite`|Being invited to join a channel.|
+|`irc_on_join`|A channel is joined.|
 |`irc_on_kick`|We got kicked.|
-|`irc_on_part`|A channel was parted.|
+|`irc_on_part`|A channel is parted.|
 
-> **Note:** When a private message channel is created and the message also contains our nick, instead of triggering `irc_on_add_channel` *and* `irc_on_highlight`, only the former is triggered.
+> **Note:** When a private message channel is created and the message also contains our nick, instead of executing both, `irc_on_add_channel` *and* `irc_on_highlight`, only the former is triggered.
 
 
 ### Examples
