@@ -6,6 +6,9 @@ BEGIN {
 	if (length(ENVIRON["IRC_TERMTITLE"])) {
 		printf "\033]0;%s\a", ENVIRON["IRC_TERMTITLE"]
 	}
+
+	for (i=32; i < 127; i++)
+		char_to_num[sprintf("%c", i)]=i
 }
 
 {
@@ -15,19 +18,28 @@ BEGIN {
 	}
 
 	# Split date into date[1] and time into date[2]
-	split(strftime("%a %b %d_%H:%M", $1), date, "_")
+	split(strftime("%a %b %d %Y_%H:%M", $1), date, "_")
 
 	# Display date only when it actually changed
 	if (prevdate != date[1]) {
 		prevdate = date[1]
 		printf "%s\033[37m-- %s --\033[0m",
-			NR == 1 ? "\n" : "\n\n", date[1]
+			NR != 1 ? "\n\n" : "", date[1]
 	}
 
 	nickend=index($2, ">")
 	type=substr($2, nickend+1)
 	msg=substr($0, index($0, ">") + 2 + length(type))
 	nick=substr($2, 2, nickend-2)
+
+	if ((color=colors[nick]) == "") {
+		i=0
+		sum=0
+		while ((num=char_to_num[substr(nick, ++i, 1)]) != "") {
+			sum=sum + num
+		}
+		colors[nick]=sum % 6 + 1
+	}
 
 	# Handle ACTION
 	if (index(type, "a")) {
@@ -43,18 +55,18 @@ BEGIN {
 	}
 	# My message
 	else if (index(type, "*")) {
-		printf "\n\033[30m%s\033[0m \033[37m%s\033[0m %s" \
+		printf "\n\033[30m%s\033[0m \033[37m%-10s\033[0m: %s" \
 			, date[2], nick, msg
 	}
 	# Other message mentioning me
 	else if (index(type, "!")) {	
-		printf "\n\a\033[33m%s\033[0m \033[35m%s\033[0m %s" \
-			, date[2], nick, msg
+		printf "\n\a\033[33m%s\033[0m \033[3%dm%-10s\033[0m: %s" \
+			, date[2], colors[nick], nick, msg
 	}
 	# Other message
 	else {
-		printf "\n\033[30m%s\033[0m \033[35m%s\033[0m %s" \
-			, date[2], nick, msg
+		printf "\n\033[30m%s\033[0m \033[3%dm%-10s\033[0m: %s" \
+			, date[2], colors[nick], nick, msg
 	}
 }
 END {
