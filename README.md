@@ -238,7 +238,7 @@ jji() {
 		return
 	while printf '%s: ' "$1"; do
 		read -r line
-		printf "msg %s %s\\n" "$1" "$line"
+		printf "msg %s %s\n" "$1" "$line"
 	done >"$IRC_DIR/$IRC_HOST/in"
 }
 jji \#channel
