@@ -244,7 +244,7 @@ jji() {
 jji \#channel
 ```
 
-#### Print the Last 10 User Messages:
+#### Print the Last 10 User Messages
 
 ```shell
 grep -m10 -v '^\d\{10\} <->' "$IRC_DIR/$IRC_HOST/channels/#channel.log"
