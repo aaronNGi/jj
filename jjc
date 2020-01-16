@@ -180,6 +180,7 @@ cmd ~ /^31[1234789]$/ { on_whois();      next }
 cmd ~ /^30[56]$/      { on_away();       next }
 cmd == "221"          { on_modereply();  next }
 cmd ~ /^32[49]$/      { on_modereply();  next }
+cmd == "341"          { on_inviting();   next }
 cmd == "401"          { on_nosuchnick(); next }
 cmd == "433"          { on_nickinuse();  next }
 cmd == "432"          { on_erroneous();  next }
@@ -1199,6 +1200,11 @@ function on_nickinuse()
 	} else {
 		print_out(param[nparam-1] ": " param[nparam])
 	}
+}
+
+function on_inviting()
+{
+	print_out("You invited " param[nparam-1] " to " param[nparam])
 }
 
 function on_nosuchnick(   nick, nick_lc, text)
