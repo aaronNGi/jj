@@ -882,7 +882,7 @@ function on_join(   nick, chan, user)
 	add_nick_to_chan(nick, chan, user " has joined " chan)
 
 	if (is_me(nick)) {
-		print_out("Added channel " target)
+		print_out("Added channel " chan)
 		ext_command("join", chan, user, "")
 	}
 }
