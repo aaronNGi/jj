@@ -234,12 +234,14 @@ tail -fn100 "$IRC_DIR/$IRC_HOST/channels/#channel.log" | jjc
 
 ```shell
 jji() {
-	[ -p "${1:?Missing channel argument}" ] || \
+	fifo="$IRC_DIR/$IRC_HOST/in"
+	[ -p "$fifo" ] && [ -w "$fifo" ] ||
 		return
-	while printf '%s: ' "$1"; do
+
+	while printf '%s: ' "${1:?Missing channel argument}"; do
 		read -r line
 		printf "msg %s %s\n" "$1" "$line"
-	done >"$IRC_DIR/$IRC_HOST/in"
+	done >"fifo"
 }
 jji \#channel
 ```
