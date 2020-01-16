@@ -19,19 +19,24 @@ A file-based IRC client.
 
 ### Concepts
 
-jj is an evolution of the [ii(1)][ii homepage] IRC client and sucks even less. It is a small suite of programs consisting of the following three (interchangeable) components:
+jj is an evolution of the [ii(1)][ii homepage] IRC client. It is a small suite of programs consisting of the following three (interchangeable) components:
 
 1. `jjd` - The daemon. It does the bare minimum like connecting to the IRC server and reading user input from a named pipe (fifo). It spawns a child and sends all user and IRC messages to it. Written in C.
 2. `jjc` - The client (or child). Gets spawned as child of `jjd` and handles the more typical IRC client things. Written in awk.
 3. `jjp` - Pretty prints log files from disk or stdin. Written in awk.
 
-In UNIX, everything is a file. jj tries to follow that mantra by storing the IRC output in various log files, reading user input via a named pipe and letting certain events be handled by external programs/scripts.
 
-Having log files means the systems text mangling utilities can be used on them (think `grep(1)`). More conventional clients usually have the ability to save log files too but they also tend to implement their own search on top of it, duplicating functionality you already get for free. Log files *being* the IRC client also automatically adds a nice separation between the back-end and front-end. The front-end can easily be stopped and restarted without affecting the back-end. Building a front-end could be as easy as `tail -f` and some `tmux(1)` usage. Or a complex log parser can be written in ones languange of choice, which colors messages, right aligns nicknames and more. Want to filter out join messages? Use `grep(1)` in the pipeline. Scrollback and search? `tmux(1)`!
+jj tries to stay true to the UNIX philosophy, which says:
+ 
+ > Write programs that do one thing and do it well. Write programs to work together. Write programs to handle text streams, because that is a universal interface.
+ 
+The IRC output is saved in various log files, user input is read via a named pipe and certain events are handled by external tools.
 
-Reading input via a named pipe makes it possible to script the input side of the front-end. For instance, want to use your editor to write and send IRC messages? No problem, you can do that too!
+Log files *being* the IRC client makes it possible to use the systems text mangling utilities on them (think `grep(1)`) and it automatically adds a nice separation between the back-end (`jjq(1)`) and front-end. The front-end can easily be stopped and restarted without affecting the back-end. Building a front-end could be as easy as `tail -f` and some `tmux(1)` usage. Or it could be a complex log parser, which colors messages, right aligns nicknames and more. Want to filter out join messages? Use `grep(1)` in the pipeline. Scrollback and search? `tmux(1)`!
 
-Common tasks, e.g. auto-joining channels after connecting to an IRC server, are not handled by `jjc(1)` itself, but instead are delegated to external programs/scripts. That gives the user a lot of freedom and power in terms of scriptability. To stay with the channel auto-join example: After successfully connecting, `jjc(1)` runs `irc_on_connect` if it's in `PATH`. That program can of course be written in your favorite languange. It could check the current host and, depending on server, join different channels, auth with services etc. The `irc_on_highlight` script could be used to send desktop/push notifications. Or the `irc_on_join` script could be used to automatically open new windows in `tmux(1)` whenever a channel is joined. See [Hooks](#hooks) for more details.
+Reading input via a named pipe makes it possible to script the input side of the front-end. For instance, want to use your editor to write and send IRC messages? No problem, you can do that!
+
+Common tasks, e.g. auto-joining channels after connecting to an IRC server, are not handled by `jjc(1)` itself, but instead are delegated to external programs (usually shell scripts). That gives the user a lot of freedom and power in terms of scriptability. To stay with the channel auto-join example: After successfully connecting, `jjc(1)` runs `irc_on_connect` if it's in `PATH`. That program can of course be written in your favorite languange. It could check the current host and, depending on server, join different channels, auth with services etc. The `irc_on_highlight` script could be used to send desktop/push notifications. Or the `irc_on_join` script could be used to automatically open new windows in `tmux(1)` whenever a channel is joined. See [Hooks](#hooks) for more details.
 
 
 ### Dependencies
@@ -219,6 +224,30 @@ The following programs are supported:
 
 ### Examples
 
-Coming soon.
+Watching logs:
+
+```shell
+tail -fn100 "$IRC_DIR/$IRC_HOST/channels/#channel.log" | jjc
+```
+
+A simple input method:
+
+```shell
+jji() {
+	[ -p "${1:?Missing channel argument}" ] ||
+		return
+	while printf '%s: ' "$1"; do
+		read -r line
+		printf %s\\n "$line"
+	done >"$IRC_DIR/$IRC_HOST/in"
+}
+jji \#channel
+```
+
+Print the last 10 user messages:
+
+```shell
+grep -m10 -v '^\d\{10\} <->' "$IRC_DIR/$IRC_HOST/channels/#channel.log"
+```
 
 [ii homepage]: https://tools.suckless.org/ii/
