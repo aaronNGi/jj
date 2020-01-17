@@ -1,11 +1,9 @@
-VERSION = 0.1
-
 PREFIX = /usr
 INCS = -I. -I/usr/include
 LIBS = -L/usr/lib -lc
 
 CC = cc
-CPPFLAGS = -DVERSION=\"${VERSION}\" -D_POSIX_SOURCE
+CPPFLAGS = -D_POSIX_SOURCE
 CFLAGS += -std=c99 -pedantic -Wall ${INCS} ${CPPFLAGS}
 LDFLAGS = -s ${LIBS}
 
