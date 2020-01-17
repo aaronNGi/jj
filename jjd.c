@@ -127,7 +127,7 @@ static void handle_child_output(int fd)
 
 static void handle_sig_child(int sig)
 {
-	/* TODO: print something here? */
+	exit(1);
 }
 
 int main(int argc, char *argv[]) {
@@ -173,13 +173,16 @@ int main(int argc, char *argv[]) {
 		goto free;
 	}
 
-	fifo_fd = open(path, O_RDWR | O_NONBLOCK);
 	ret = 0;
 
 	free:
 		free(path);
 		if (ret)
 			exit(ret);
+
+	fifo_fd = open(path, O_RDWR | O_NONBLOCK);
+	if (fifo_fd == -1)
+		eprint("cannot open fifo:");
 
 	extern char **environ;
 	signal(SIGCHLD, handle_sig_child);
