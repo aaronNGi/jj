@@ -22,7 +22,7 @@ A file-based IRC client.
 jj is an evolution of the [ii(1)][ii homepage] IRC client. It is a small suite of programs consisting of the following three (interchangeable) components:
 
 1. `jjd` - The daemon. It does the bare minimum like connecting to the IRC server and reading user input from a named pipe (fifo). It spawns a child and sends all user and IRC messages to it. Written in C.
-2. `jjc` - The client (or child). Gets spawned as child of `jjd` and handles the more typical IRC client things. Written in awk.
+2. `jjc` - The client. Gets spawned as child of `jjd` and handles the more typical IRC client things. Written in awk.
 3. `jjp` - Pretty prints log files from disk or stdin. Written in awk.
 
 
@@ -36,7 +36,7 @@ Log files *being* the IRC client makes it possible to use the systems text mangl
 
 Reading input via a named pipe makes it possible to script the input side of the front-end. For instance, want to use your editor to write and send IRC messages? No problem, you can do that!
 
-Common tasks, e.g. auto-joining channels after connecting to an IRC server, are not handled by `jjc(1)` itself, but instead are delegated to external programs (usually shell scripts). That gives the user a lot of freedom and power in terms of scriptability. To stay with the channel auto-join example: After successfully connecting, `jjc(1)` runs `irc_on_connect` if it's in `PATH`. That program can of course be written in your favorite languange. It could check the current host and, depending on server, join different channels, auth with services etc. The `irc_on_highlight` script could be used to send desktop/push notifications. Or the `irc_on_join` script could be used to automatically open new windows in `tmux(1)` whenever a channel is joined. See [Hooks](#hooks) for more details.
+Common tasks, e.g. auto-joining channels after connecting to an IRC server, are not handled by `jjc(1)` itself, but instead are delegated to external programs (usually shell scripts). That gives the user a lot of freedom and power in terms of scriptability. To stay with the channel auto-join example: After successfully connecting, `jjc(1)` runs `irc_on_connect` if it's in `PATH`. That program can of course be written in your favorite languange. It could check the current host and, depending on server, join different channels, auth with services etc. The `irc_on_highlight` script could be used to send desktop/push notifications. The `irc_on_join` script could be used to automatically open new windows in `tmux(1)`, whenever a channel is joined. See [Hooks](#hooks) for more details.
 
 
 ### Dependencies
@@ -61,7 +61,7 @@ PATH=~/.local/bin:$PATH
 
 ### Usage
 
-None of the programs have any options and instead are controlled entirely by environment variables. If the defaults are not satisfactory (like nickname), it makes sense to put the desired changes into `~/.profile`, so they don't have to be entered manually for every `jjd(1)` invocation. For the full list of variables, see the [Environment Variables](#environment-variables) section.
+None of the programs have any options and instead are controlled entirely by environment variables. To change the defaults, it makes sense to put the desired changes into `~/.profile`, so they don't have to be entered manually for every `jjd(1)` invocation. For the full list of variables, see the [Environment Variables](#environment-variables) section.
 
 #### Connecting to a Server
 
@@ -117,7 +117,7 @@ irc.freenode.org/
 └── server.log
 ```
 
-`server.log` is where all non-channel specific messages go. Instead of spamming `server.log` with the servers message of the day every time the user connects, it is instead written to the file called `motd`. The file named `in` is a named pipe used for sending messages to the IRC server. The `channels` directory contains log files of channels and private messages.
+`server.log` is where all non-channel specific messages go. Instead of spamming `server.log` with the servers message of the day, every time the user connects, it is instead written to the file called `motd`. The file named `in` is a named pipe, used for sending messages to the IRC server. The `channels` directory contains log files of channels and private messages.
 
 
 ### Input Commands
@@ -127,28 +127,28 @@ These are the input commands supported by `jjc(1)`. All commands are case-insens
 |Command|Parameter 1|Parameter 2|Parameter 3|Description|
 |-|-|-|-|-|
 |`action`|target|message|n/a|Send an action message to a user or channel.|
-|`me`|target|message|n/a|An alias for action.|
+|`me`|target|message|n/a|An alias for `action`.|
 |`away`|away text*|n/a|n/a|Mark yourself as away. Without parameters it unsets away.|
 |`invite`|nickname|channel|n/a|Invite a user to a channel.|
 |`join`|channel1[,channel2]...|\*password1[,password2]...|n/a|Join channels.|
-|`kick`|channel|nickname|\*reason|Kick a user out of a channel.|
+|`kick`|channel|nickname|\*reason|Kick a user from a channel.|
 |`list`|n/a|n/a|n/a|Print a list of all currently open channels (including private message channels).|
-|`ls`|n/a|n/a|n/a|An alias for list.|
-|`message`|target|\*message|n/a|Send a message to a channel or user. When messaging a user without message text, a private message channel will still be created.|
-|`msg`|target|\*message|n/a|An alias for message.|
+|`ls`|n/a|n/a|n/a|An alias for `list`.|
+|`message`|target|\*message|n/a|Send a message to a channel or user. When messaging a user, the message text can be omitted to create a private message channel.|
+|`msg`|target|\*message|n/a|An alias for `message`.|
 |`mode`|target|\*mode|\*mode parameter|Set various user or channel modes. `mode #channel +b` requests the channels banlist. `mode #channel` requests the current mode.|
 |`names`|channel|n/a|n/a|Request the names listing of a channel.|
 |`nick`|nickname|n/a|n/a|Change your nickname.|
-|`notice`|target|\*message|n/a|Send a notice to a channel or user. The same rules as with message apply.|
+|`notice`|target|\*message|n/a|Send a notice to a channel or user. The same rules as with `message` apply.|
 |`part`|target|\*reason|n/a|Leave a channel or close a private message channel.|
 |`quit`|\*reason|n/a|n/a|Disconnect from the server and quit jj.|
 |`topic`|channel|n/a|n/a|Request the topic of a channel.|
-|`topicset`|channel|\*topic|n/a|Set or remove the topic of a channel.|
+|`topicset`|channel|\*topic|n/a|Set the topic of a channel. Omitting the second parameter removes the channel topic.|
 |`whois`|nickname|n/a|n/a|Request the whois information of a user.|
 
-Additionally, the `raw` command can be used to send unsupported IRC commands without `jjc(1)` interpreting them.
+Additionally, the `raw` command can be used to send IRC commands not supported by `jjc(1)`.
 
-> **Note:** Using `raw` to message/notice a channel or user, results in the message not being printed locally (to the log file). It could be used to auth with services to prevent password from being written to the logs.
+> **Note:** Using `raw` to message/notice a channel or user results in the message not being printed locally (to the log file). It could be used to auth with services to prevent passwords from being written to the logs.
 
 
 ### Environment Variables
@@ -175,11 +175,11 @@ When [Hooks](#hooks) are being run, in addition to inheriting the setting variab
 |-|-|
 |`IRC_ME`|Our nickname.|
 |`IRC_NETWORK`|The networks official name as supplied by the server. Like "QuakeNet".|
-|`IRC_TEXT`|The text of a message. If applicable, empty otherwise. If the event is a kick, part, or quit, it would contain the  reason.|
+|`IRC_TEXT`|The text of a message. Or if the event is a kick, part, or quit, it would contain the reason. If applicable, empty otherwise.|
 |`IRC_WHERE`|In which channel the event happened. If applicable, empty otherwise.|
-|`IRC_WHO`|Who triggered this hook. If applicable, empty otherwise.|
-|`IRC_CASEMAPPING`|The servers casemapping. For e.g. rfc1459, its value would be `][\~A-Z }{\|^a-z`, which can be split on space and then used as arguments for `tr(1)` to properly casefold a string.|
-|`IRC_AWAY`|1 when we are marked away, unset otherwise.|
+|`IRC_WHO`|Who triggered this hook, e.g. the nickname of the message author. If applicable, empty otherwise.|
+|`IRC_CASEMAPPING`|The servers casemapping. For rfc1459 for example, its value would be `][\~A-Z }{\|^a-z`, which can be split on space and then used as arguments for `tr(1)`, to properly casefold a string.|
+|`IRC_AWAY`|1 when we are marked away, empty otherwise.|
 
 
 ### Log Format
@@ -192,8 +192,8 @@ The "1579093317" is the seconds since epoch (UTC). It can be converted to the cu
 
 `jjc(1)` uses the following message type indicators:
 
-* `*` - This is you. You are the author of this message.
-* `!` - Important information in server.log or your nick is mentioned in this message.
+* `*` - This is us, we are the author of this message.
+* `!` - Important information in server.log or our nick is mentioned in this message.
 * `n` - This message is a notice.
 * `:<status>:` - A channel message send only to users with a certain status in that channel (@%+ etc).
 * `c` - A CTCP message.
@@ -216,10 +216,10 @@ The following programs are supported:
 |`irc_on_highlight`|Own nick is mentioned in a message.|
 |`irc_on_invite`|Being invited to join a channel.|
 |`irc_on_join`|A channel is joined.|
-|`irc_on_kick`|We got kicked.|
+|`irc_on_kick`|We got kicked from a channel.|
 |`irc_on_part`|A channel is parted.|
 
-> **Note:** When a private message channel is created and the message also contains our nick, instead of executing both, `irc_on_add_channel` *and* `irc_on_highlight`, only the former is triggered.
+> **Note:** When a private message contains our nick but also caused the creation of a channel, instead of executing both, `irc_on_add_channel` *and* `irc_on_highlight`, only the former is triggered.
 
 
 ### Examples
