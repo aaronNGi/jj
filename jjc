@@ -259,7 +259,7 @@ function eprint(retval, text)
 
 function stderr(text)
 {
-	print text >"/dev/stderr"
+	print "jjc:", text >"/dev/stderr"
 }
 
 function debug_usr()
@@ -1165,6 +1165,7 @@ function on_isupport(   arr, i, j, pos, var, val)
 		}
 	}
 	if (irc["isupport_done"] == 4) {
+		stderr("connected to " irc["network"])
 		ext_command("connect")
 		delete irc["isupport_done"]
 	}
