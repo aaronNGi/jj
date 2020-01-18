@@ -256,7 +256,7 @@ jji \#channel
 #### Print the Last 10 User Messages
 
 ```shell
-grep -m10 -v '^\d\{10\} <->' "$IRC_DIR/$IRC_HOST/channels/#channel.log"
+tac "$IRC_DIR/$IRC_HOST/channels/#channel.log" | grep -m10 -v '^\d\{10\} <->' | tac
 ```
 
 #### A Sample irc_on_connect
