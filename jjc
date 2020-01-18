@@ -807,7 +807,7 @@ function on_msg(   char, ctcp, highlight, after, before,
 	user=get_nickuserhost()
 	text=param[nparam]
 
-	# CTCP/action
+	# CTCP/action.
 	if (text ~ /^\x01.*\x01$/) {
 		if (text ~ /^\x01ACTION /) {
 			suffix=suffix "a"
@@ -876,7 +876,7 @@ function on_mode(   i, user, target, text)
 		target=irc_tolower(param[1])
 		text=user " has set"
 	}
-	# append all params
+	# Append all params.
 	for (i=1; i<=nparam; i++)
 		text=text " " param[i]
 
@@ -901,7 +901,7 @@ function on_part(   nick, chan, user, text, reason)
 
 	text=user " has left " chan
 
-	# part reason
+	# Part reason.
 	if (nparam > 1 && length(param[nparam])) {
 		reason=param[nparam]
 		text=text " (" reason ")"
@@ -988,7 +988,7 @@ function on_quit(   chan, nick, user, text)
 
 	text=user " has quit"
 
-	# quit reason
+	# Quit reason.
 	if (nparam && length(param[nparam]))
 		text=text " (" param[nparam] ")"
 
@@ -1007,14 +1007,14 @@ function on_names(    arr, chan, i, key, name, nick, pre)
 {
 	if (cmd == "353") {
 		chan=irc_tolower(param[nparam-1])
-		# split all names
+		# Split all names.
 		split(param[nparam], arr, " ")
 
-		# loop names and sort them by status
+		# Loop names and sort them by status.
 		for (i in arr) {
 			name=arr[i]
 			pre=substr(name, 1, 1)
-			# special status (op/voice)?
+			# Special status (op/voice)?
 			if (index(support["prefix"], pre)) {
 				nick=substr(name, 2)
 				key=chan pre
@@ -1026,11 +1026,11 @@ function on_names(    arr, chan, i, key, name, nick, pre)
 			}
 			names[chan]=names[chan] " " nick " "
 		}
-	} else {  # end of names list
+	} else {  # End of names list.
 		chan=irc_tolower(param[2])
 		split(support["prefix"], arr, "")
 
-		# concat all names, sorted by status
+		# Concat all names, sorted by status.
 		for (i=1; i<=length(arr); i++) {
 			pre=arr[i]
 			names[all]=names[all] names[chan pre]
@@ -1041,8 +1041,8 @@ function on_names(    arr, chan, i, key, name, nick, pre)
 			delete names[chan "normal"]
 		}
 
-		# when a channels list of nicks is still empty, we just
-		# joined this channel
+		# When a channels list of nicks is still empty, we just
+		# joined this channel.
 		if (!channels[chan])
 			channels[chan]=irc_tolower(names[chan])
 
@@ -1074,7 +1074,7 @@ function on_whois(    text)
 		text=param[2] " " param[3]
 	# RPL_WHOISIDLE
 	} else if (cmd == "317") {
-		# We can't handle all the weird stuff some ircd's do
+		# We can't handle all the weird stuff some ircd's do.
 		if (nparam > 5) {
 			on_generic()
 			return
@@ -1125,7 +1125,7 @@ function on_myinfo()
 
 function on_isupport(   arr, i, j, pos, var, val)
 {
-	# parse all properties and split on =
+	# Parse all properties and split on =.
 	for (i in param) {
 		if (pos=index(param[i], "=")) {
 			var=substr(param[i], 1, pos-1)
@@ -1146,9 +1146,9 @@ function on_isupport(   arr, i, j, pos, var, val)
 			casemap["uppercase_range"]=arr[1]
 			casemap["lowercase_range"]=arr[2]
 
-			# map uppercase to lowercase by looping over
-			# all characters of the uppercase range except
-			# the last 3 (A-Z)
+			# Map uppercase to lowercase by looping over all
+			# characters of the uppercase range except the
+			# last 3 (A-Z).
 			for (j=1; j<=length(arr[1])-3; j++)
 				casemap[substr(arr[1], j, 1)]= \
 					substr(arr[2], j, 1)
