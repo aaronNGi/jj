@@ -227,7 +227,7 @@ The following programs are supported:
 #### Watching Logs
 
 ```shell
-tail -fn100 "$IRC_DIR/$IRC_HOST/channels/#channel.log" | jjc
+tail -fn100 "$IRC_DIR/$IRC_HOST/channels/#channel.log" | jjp
 ```
 
 #### A Simple Input Method
