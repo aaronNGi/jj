@@ -40,6 +40,7 @@ BEGIN {
 		}
 		colors[nick]=sum % 6 + 1
 	}
+	color=colors[nick]
 
 	# Handle ACTION
 	if (index(type, "a")) {
@@ -61,12 +62,12 @@ BEGIN {
 	# Other message mentioning me
 	else if (index(type, "!")) {	
 		printf "\n\a\033[33m%s\033[0m \033[3%dm%-10s\033[0m: %s" \
-			, date[2], colors[nick], nick, msg
+			, date[2], color, nick, msg
 	}
 	# Other message
 	else {
 		printf "\n\033[30m%s\033[0m \033[3%dm%-10s\033[0m: %s" \
-			, date[2], colors[nick], nick, msg
+			, date[2], color, nick, msg
 	}
 }
 END {
