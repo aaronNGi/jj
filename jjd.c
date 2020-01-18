@@ -159,15 +159,22 @@ int main(int argc, char *argv[]) {
 
 	sprintf(path, "%s/%s", ircdir, host);
 	if (mkdir(path, 0777) == -1 && errno != EEXIST) {
-		fprintf(stderr, "%s: cannot create directory: %s\n",
-			prog, strerror(errno));
+		fprintf(stderr, "%s: cannot create directory '%s': %s\n",
+			prog, path, strerror(errno));
 		goto free;
 	}
 
 	sprintf(path, "%s/%s/%s", ircdir, host, fifoname);
 	if (mkfifo(path, 0600) == -1 && errno != EEXIST) {
-		fprintf(stderr, "%s: cannot create fifo: %s\n",
-			prog, strerror(errno));
+		fprintf(stderr, "%s: cannot create fifo '%s': %s\n",
+			prog, path, strerror(errno));
+		goto free;
+	}
+
+	fifo_fd = open(path, O_RDWR | O_NONBLOCK);
+	if (fifo_fd == -1) {
+		fprintf(stderr, "%s: cannot open fifo '%s': %s\n",
+			prog, path, strerror(errno));
 		goto free;
 	}
 
@@ -177,10 +184,6 @@ int main(int argc, char *argv[]) {
 		free(path);
 		if (ret)
 			exit(ret);
-
-	fifo_fd = open(path, O_RDWR | O_NONBLOCK);
-	if (fifo_fd == -1)
-		eprint("cannot open fifo:");
 
 	extern char **environ;
 	signal(SIGCHLD, handle_sig_child);
