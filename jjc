@@ -742,9 +742,9 @@ function cmd_quit()
 	print_out("Quitting...")
 
 	if ($0 == "")
-		send ("QUIT")
+		send("QUIT")
 	else
-		send ("QUIT :" $0)
+		send("QUIT :" $0)
 }
 
 function cmd_raw()
