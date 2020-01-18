@@ -41,7 +41,7 @@ Common tasks, e.g. auto-joining channels after connecting to an IRC server, are 
 
 ### Dependencies
 
-Nothing but a C compiler and an `awk(1)` with support for time functions.
+Nothing but a C compiler and `awk(1)`.
 
 
 ### Installation

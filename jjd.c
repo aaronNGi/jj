@@ -25,7 +25,7 @@
 #define IRC_MSG_MAX 512
 
 static char bufin[IRC_MSG_MAX];
-static char bufout[IRC_MSG_MAX];
+static char bufout[IRC_MSG_MAX+14];
 static FILE *srv;
 static int read_pipe[2];
 static int write_pipe[2];
@@ -102,7 +102,7 @@ static void handle_server_output()
 	if(fgets(bufin, sizeof bufin, srv) == NULL)
 		eprint("remote host closed the connection\n");
 
-	snprintf(bufout, sizeof bufout, "i %s", bufin);
+	snprintf(bufout, sizeof bufout, "i %d %s", (int)time(NULL), bufin);
 	if (write(PARENT_WRITE, bufout, strlen(bufout)) == -1)
 		eprint("cannot write to client:");
 }
@@ -111,7 +111,7 @@ static void handle_fifo_input(int fd)
 {
 	if (read_line(fd, bufin, sizeof bufin) == -1)
 		return;
-	snprintf(bufout, sizeof bufout, "u %s\n", bufin);
+	snprintf(bufout, sizeof bufout, "u %d %s\n", (int)time(NULL), bufin);
 	if (write(PARENT_WRITE, bufout, strlen(bufout)) == -1)
 		eprint("cannot write to client:");
 }

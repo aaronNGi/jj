@@ -113,16 +113,19 @@ BEGIN {
 
 function handle_user_input()
 {
-	# A message shorter than 3 characters is equal to "u ", meaning
-	# it's an empty message and we should ignore it.
-	if (length($0) < 3) return
+	# A message shorter than 14 characters is equal to
+	# "u dddddddddd ", meaning it's an empty message and we should
+	# ignore it.
+	if (length($0) < 14) return
+
+	time=$2
 
 	# Commands are case-insensitive
-	cmd=tolower($2)
+	cmd=tolower($3)
 
-	# Having saved the command, we can now remove the "u " prefix and
-	# command, resulting in $0 being only parameters.
-	sub(/^u *[^ ]+ ?/, "")
+	# Having saved the command, we can now remove everything up to the
+	# actual parameters.
+	sub(/^.{14} *[^ ]+ ?/, "")
 
 	if (cmd == "") { print_out("Missing command") }
 	else if (cmd == "action")   { cmd_msg("ACTION") }
@@ -196,8 +199,10 @@ cmd == "005"          { on_isupport();   next }
 # array elements.  They are called ntag, nsource and nparam.
 function parse_irc_input(   field, i, line, has_trailing, trailing)
 {
-	# Skip the "i " prefix.
-	field=2
+	time=$2
+
+	# Skip the "i <time>" prefix.
+	field=3
 
 	# Parse tags.
 	if ($field ~ /^@/) {
@@ -306,7 +311,7 @@ function print_out(text, chan, nick, suffix,   file)
 	if (nick == "" || nick == irc["host"])
 		nick="-"
 
-	printf "%u <%s>%s %s\n", systime(), nick, suffix, text >>file
+	printf "%u <%s>%s %s\n", time, nick, suffix, text >>file
 	fflush(file)
 }
 
