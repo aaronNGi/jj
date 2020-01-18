@@ -184,6 +184,7 @@ cmd ~ /^30[56]$/      { on_away();       next }
 cmd == "221"          { on_modereply();  next }
 cmd ~ /^32[49]$/      { on_modereply();  next }
 cmd == "341"          { on_inviting();   next }
+cmd == "367"          { on_banlist();    next }
 cmd == "401"          { on_nosuchnick(); next }
 cmd == "433"          { on_nickinuse();  next }
 cmd == "432"          { on_erroneous();  next }
@@ -1209,6 +1210,20 @@ function on_nickinuse()
 function on_inviting()
 {
 	print_out("You invited " param[nparam-1] " to " param[nparam])
+}
+
+function on_banlist(   user, text)
+{
+	text=param[2] " bans: " param[3]
+
+	if (nparam > 3) {
+		nsource=split(param[4], "[!@]", source)
+		user=get_nickuserhost()
+		text=text " by " param[4]
+		if (param[5] != "")
+			text=text " on " param[5]
+	}
+	print_out(text)
 }
 
 function on_nosuchnick(   nick, nick_lc, text)
