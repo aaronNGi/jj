@@ -21,7 +21,7 @@ A file-based IRC client.
 
 jj is an evolution of the [ii(1)][ii homepage] IRC client. It is a small suite of programs consisting of the following three (interchangeable) components:
 
-1. `jjd` - The daemon. It does the bare minimum like connecting to the IRC server and reading user input from a named pipe (fifo). It spawns a child and sends all user and IRC messages to it. Written in C.
+1. `jjd` - The daemon. It does the bare minimum like connecting to the IRC server and reading user input from a named pipe (fifo). It spawns a child and sends all user and IRC messages to it. Text coming from the child is send to the IRC server. Written in C.
 2. `jjc` - The client. Gets spawned as child of `jjd` and handles the more typical IRC client things. Written in awk.
 3. `jjp` - Pretty prints log files from disk or stdin. Written in awk.
 
