@@ -784,7 +784,7 @@ function on_msg(   char, ctcp, highlight, after, before,
 	new, pos, suffix, target, text, user)
 {
 	# Privmsgs/notices from the server go into server.log.
-	if (!irc["connected"] || !nsource) {
+	if (!irc["connected"] || !nsource || source[1] == irc["host"]) {
 		source[1]=""
 		target=""
 	# Privmsgs to me go into the senders "channel".
