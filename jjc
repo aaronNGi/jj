@@ -46,6 +46,10 @@ BEGIN {
 	irc["logdir"]        = ENVIRON["IRC_DIR"] "/" irc["host"]
 	irc["motdfile"]      = irc["logdir"] "/motd"
 
+	# Initialize the channels array. It stores all joined channels and
+	# their users.
+	split("", channels)
+
 	# The command array maps an event to a command name.  That name,
 	# appended to "prefix", is then used as command when calling
 	# an external event script via ext_command().
