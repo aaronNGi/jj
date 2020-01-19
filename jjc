@@ -84,8 +84,7 @@ BEGIN {
 	}
 
 	# These were only temporary variables so let's delete them.
-	delete local["path"]
-	delete local["retval"]
+	split("", local)
 
 	# Initiate the irc login sequence which sends the PASS, NICK and
 	# USER messages to the server.
