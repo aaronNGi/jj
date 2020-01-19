@@ -120,7 +120,8 @@ static void handle_child_output(int fd)
 {
 	if (read_line(fd, bufin, sizeof bufin) == -1)
 		return;
-	fprintf(srv, bufin);
+	fprintf(srv, "%s\n", bufin);
+	fflush(srv);
 }
 
 static void handle_sig_child(int sig)
@@ -148,7 +149,7 @@ int main(int argc, char *argv[]) {
 	char *fifoname = FIFO_NAME;
 
 	char *path = malloc(
-		strlen(ircdir) + strlen(host) + strlen(fifoname) + 2);
+		strlen(ircdir) + strlen(host) + strlen(fifoname) + 3);
 
 	int ret = 1;
 	if (!path) {
@@ -202,10 +203,9 @@ int main(int argc, char *argv[]) {
 		dup2(CHILD_READ, 0);
 		dup2(CHILD_WRITE, 1);
 
-		if (execlp(cmd, (char *)NULL) < 0)
-			eprint("cannot execute client:");
+		execlp(cmd, (char *)NULL);
+		eprint("cannot execute client:");
 	} else {
-		close(0);
 		close(CHILD_READ);
 		close(CHILD_WRITE);
 	}
