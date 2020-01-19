@@ -536,7 +536,7 @@ function ext_command(name, chan, instigator, text,
 	retval=system("command -v " name " 1>/dev/null")
 
 	if (retval == -1)
-		print_out("Failed calling external command '" command "'")
+		print_out("Failed calling external command '" name "'")
 	# Command wasn't found.
 	else if (retval != 0)
 		return 0
