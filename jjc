@@ -1217,7 +1217,7 @@ function on_banlist(   user, text)
 	text=param[2] " bans: " param[3]
 
 	if (nparam > 3) {
-		nsource=split(param[4], "[!@]", source)
+		nsource=split(param[4], source, "[!@]")
 		user=get_nickuserhost()
 		text=text " by " param[4]
 		if (param[5] != "")
