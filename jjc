@@ -294,6 +294,7 @@ function debug_irc()
 function send(text)
 {
 	printf "%s\r\n", text
+	fflush()
 }
 
 function print_out(text, chan, nick, suffix,   file)
