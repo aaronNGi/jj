@@ -1151,6 +1151,11 @@ function on_isupport(   arr, i, j, pos, var, val)
 			casemap["uppercase_range"]=arr[1]
 			casemap["lowercase_range"]=arr[2]
 
+			# These will be used as regex and need backslashes
+			# to be escaped.
+			gsub(/\\/, "\\\\", casemap["uppercase_range"])
+			gsub(/\\/, "\\\\", casemap["lowercase_range"])
+
 			# Map uppercase to lowercase by looping over all
 			# characters of the uppercase range except the
 			# last 3 (A-Z).
