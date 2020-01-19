@@ -21,8 +21,8 @@ BEGIN {
 	# used when checking whether or not a string contains any
 	# characters which would need folding.
 	casemap["ascii"]           = "A-Z a-z"
-	casemap["rfc1459"]         = "][\\~A-Z }{|^a-z"
-	casemap["strict"]          = "][\\A-Z }{|a-z"
+	casemap["rfc1459"]         = "][\\\\~A-Z }{|^a-z"
+	casemap["strict"]          = "][\\\\A-Z }{|a-z"
 	casemap["strict_rfc1459"]  = casemap["strict"]
 	casemap["rfc1459_strict"]  = casemap["strict"]
 	casemap["uppercase_range"] = "A-Z"
