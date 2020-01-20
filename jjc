@@ -31,7 +31,6 @@ BEGIN {
 	for (local["i"]=65; local["i"]<91; local["i"]++)
 		casemap[sprintf("%c", local["i"])]=sprintf("%c",
 			local["i"] + 32)
-	delete local["i"]
 
 	# General settings and connection related state.
 	irc["connected"]     = 0
@@ -72,7 +71,7 @@ BEGIN {
 
 	# Shell escape the logdir path.  Because all variables used in
 	# BEGIN will have global scope, an array variable is used.  That
-	# way it can be deleted later.
+	# way it can easily be emptied later.
 	local["path"]=shell_escape(irc["logdir"] "/channels")
 
 	# Try to create the "channels" directory while also creating all
@@ -87,7 +86,7 @@ BEGIN {
 		exit local["retval"]
 	}
 
-	# These were only temporary variables so let's delete them.
+	# Empty the array holding local variables.
 	split("", local)
 
 	# Initiate the irc login sequence which sends the PASS, NICK and
