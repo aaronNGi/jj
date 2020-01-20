@@ -1,256 +1,268 @@
 /* See LICENSE file for license details. */
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/stat.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
+#define _WITH_DPRINTF
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/select.h>
 
 #include "config.h"
 
-#define PARENT_READ read_pipe[0]
-#define PARENT_WRITE write_pipe[1]
-#define CHILD_READ write_pipe[0]
-#define CHILD_WRITE read_pipe[1]
 #define IRC_MSG_MAX 512
 
-static char bufin[IRC_MSG_MAX];
-static char bufout[IRC_MSG_MAX+14];
-static FILE *srv;
-static int read_pipe[2];
-static int write_pipe[2];
+static const char *prog;
 
-static char* prog;
-
-static void eprint(const char *fmt, ...) {
+static void
+die(const char *fmt, ...)
+{
+	int sverr = errno;
 	va_list ap;
 
+	fprintf(stderr, "%s: error: ", prog);
+
 	va_start(ap, fmt);
-	vsnprintf(bufout, sizeof bufout, fmt, ap);
+	vfprintf(stderr, fmt, ap);
 	va_end(ap);
-	fprintf(stderr, "%s: %s", prog, bufout);
-	if(fmt[0] && fmt[strlen(fmt) - 1] == ':')
-		fprintf(stderr, " %s\n", strerror(errno));
+
+	if (fmt[0] && fmt[strlen(fmt) - 1] == ':')
+		fprintf(stderr, " %s", strerror(sverr));
+
+	fprintf(stderr, "\n");
 	exit(1);
 }
 
-static int dial(char *host, char *port) {
-	static struct addrinfo hints;
-	int srv;
-	struct addrinfo *res, *r;
+static int
+dial(const char *host, const char *port)
+{
+	int fd = -1;
+	struct addrinfo *res, *r, hints;
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	if(getaddrinfo(host, port, &hints, &res) != 0)
-		eprint("error: cannot resolve hostname '%s':", host);
-	for(r = res; r; r = r->ai_next) {
-		if((srv = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1)
+
+	if (getaddrinfo(host, port, &hints, &res))
+		die("cannot resolve '%s:%s':", host, port);
+
+	for (r = res; r; r = r->ai_next) {
+		fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
+		if (fd < 0)
 			continue;
-		if(connect(srv, r->ai_addr, r->ai_addrlen) == 0)
+
+		if (connect(fd, r->ai_addr, r->ai_addrlen) == 0)
 			break;
-		close(srv);
+
+		close(fd);
 	}
 	freeaddrinfo(res);
-	if(!r)
-		eprint("error: cannot connect to host '%s'\n", host);
 
-	return srv;
+	if (r == NULL)
+		die("cannot connect to '%s:%s'", host, port);
+
+	return fd;
 }
 
-static int safe_fd_set(int fd, fd_set* fds, int* max_fd) {
-	assert(max_fd != NULL);
-
-	FD_SET(fd, fds);
-	if (fd > *max_fd)
-		*max_fd = fd;
-	return 0;
-}
-
-static int read_line(int fd, char *buf, size_t bufsize)
+static int
+read_line(int fd, char *buf, size_t bufsize)
 {
-	size_t i;
 	char c;
+	size_t i = 0;
 
-	for (i = 0; i < bufsize - 1; i++) {
-		if (read(fd, &c, sizeof(char)) != sizeof(char))
-			return -1;
+	if (bufsize < 2) /* must have room for 1 character and \0 */
+		abort();
 
+	while (read(fd, &c, 1) == 1) {
 		if (c == '\n') {
+			/* take out \n or \r\n */
+			if (i && buf[i - 1] == '\r')
+				--i;
 			buf[i] = '\0';
 			return 0;
 		}
-
-		buf[i] = c;
+		/* leave room for \0 */
+		if (i < bufsize - 1)
+			buf[i++] = c;
 	}
-	buf[i] = '\0';
-	return 0;
+	return -1; /* EOF or error */
 }
 
-static void handle_server_output()
+static void
+input_from_socket(int fd, int pipe_fd)
 {
-	if(fgets(bufin, sizeof bufin, srv) == NULL)
-		eprint("remote host closed the connection\n");
+	char buf[IRC_MSG_MAX];
 
-	snprintf(bufout, sizeof bufout, "i %d %s", (int)time(NULL), bufin);
-	if (write(PARENT_WRITE, bufout, strlen(bufout)) == -1)
-		eprint("cannot write to client:");
+	if (read_line(fd, buf, sizeof buf))
+		die("remote host closed the connection");
+
+	if (dprintf(pipe_fd, "i %ju %s\n", (uintmax_t)time(NULL), buf) < 0)
+		die("cannot write to client:");
+
 }
 
-static void handle_fifo_input(int fd)
+static void
+input_from_fifo(int fd, int pipe_fd)
 {
-	if (read_line(fd, bufin, sizeof bufin) == -1)
-		return;
-	snprintf(bufout, sizeof bufout, "u %d %s\n", (int)time(NULL), bufin);
-	if (write(PARENT_WRITE, bufout, strlen(bufout)) == -1)
-		eprint("cannot write to client:");
+	char buf[IRC_MSG_MAX];
+
+	if (read_line(fd, buf, sizeof buf))
+		die("failed reading fifo:");
+
+	if (dprintf(pipe_fd, "u %ju %s\n", (uintmax_t)time(NULL), buf) < 0)
+		die("cannot write to client:");
 }
 
-static void handle_child_output(int fd)
+static void
+handle_sig_child(int sig)
 {
-	if (read_line(fd, bufin, sizeof bufin) == -1)
-		return;
-	fprintf(srv, "%s\n", bufin);
-	fflush(srv);
-}
+	if (sig != SIGCHLD)
+		abort();
 
-static void handle_sig_child(int sig)
-{
 	exit(1);
 }
 
-int main(int argc, char *argv[]) {
-	struct timeval tv;
-	fd_set master, rd;
-	int fifo_fd, max_fd, n;
+static const char *
+variable(const char *name, const char *def)
+{
+	const char *cp;
+
+	cp = getenv(name);
+	if (cp == NULL)
+		cp = def;
+
+	return (cp);
+}
+
+/* fifo is opened read and write, so there is never EOF */
+
+static int
+fifo_setup(const char *dir, const char *host)
+{
+	const char *fifoname = FIFO_NAME;
+	char *path;
+	int fd;
+
+	/* +3 for //\0 */
+	path = malloc(strlen(dir) + strlen(host) + strlen(fifoname) + 3);
+	if (path == NULL)
+		die("malloc:");
+
+	sprintf(path, "%s/%s", dir, host);
+
+	if (mkdir(path, 0777) == -1 && errno != EEXIST)
+		die("cannot create directory '%s':", path);
+
+	sprintf(path, "%s/%s/%s", dir, host, fifoname);
+
+	if (mkfifo(path, 0600) == -1 && errno != EEXIST)
+		die("cannot create fifo '%s':", path);
+
+	fd = open(path, O_RDWR | O_NONBLOCK);
+	if (fd == -1)
+		die("cannot open fifo '%s':", path);
+
+	free(path);
+
+	return (fd);
+}
+
+int
+main(int argc, char **argv)
+{
+	int sock, fifo_fd, max_fd;
+	int child_pipe[2];
 	time_t trespond;
+	fd_set rdset;
 
-	prog = argv[0];
+	const char *ircdir = variable("IRC_DIR",    DEFAULT_DIR);
+	const char *host   = variable("IRC_HOST",   DEFAULT_HOST);
+	const char *port   = variable("IRC_PORT",   DEFAULT_PORT);
+	const char *cmd    = variable("IRC_CLIENT", DEFAULT_CMD);
 
-	char *val;
-	char *ircdir = (val = getenv("IRC_DIR")) != NULL
-		? val : DEFAULT_DIR;
-	char *host = (val = getenv("IRC_HOST")) != NULL
-		? val : DEFAULT_HOST;
-	char *port = (val = getenv("IRC_PORT")) != NULL
-		? val : DEFAULT_PORT;
-	char *cmd = (val = getenv("IRC_CLIENT")) != NULL
-		? val : DEFAULT_CMD;
-	char *fifoname = FIFO_NAME;
+	prog = argc ? argv[0] : "jjd";
 
-	char *path = malloc(
-		strlen(ircdir) + strlen(host) + strlen(fifoname) + 3);
+	fifo_fd = fifo_setup(ircdir, host);
 
-	int ret = 1;
-	if (!path) {
-		fprintf(stderr, "%s: malloc error: %s\n",
-			prog, strerror(errno));
-		goto free;
-	}
+	/* stdin, stdout or stderr was closed. too funny. */
+	if (fifo_fd <= 2)
+		abort();
 
-	sprintf(path, "%s/%s", ircdir, host);
-	if (mkdir(path, 0777) == -1 && errno != EEXIST) {
-		fprintf(stderr, "%s: cannot create directory '%s': %s\n",
-			prog, path, strerror(errno));
-		goto free;
-	}
-
-	sprintf(path, "%s/%s/%s", ircdir, host, fifoname);
-	if (mkfifo(path, 0600) == -1 && errno != EEXIST) {
-		fprintf(stderr, "%s: cannot create fifo '%s': %s\n",
-			prog, path, strerror(errno));
-		goto free;
-	}
-
-	fifo_fd = open(path, O_RDWR | O_NONBLOCK);
-	if (fifo_fd == -1) {
-		fprintf(stderr, "%s: cannot open fifo '%s': %s\n",
-			prog, path, strerror(errno));
-		goto free;
-	}
-
-	ret = 0;
-
-	free:
-		free(path);
-		if (ret)
-			exit(ret);
-
-	extern char **environ;
 	signal(SIGCHLD, handle_sig_child);
 
-	if (pipe(read_pipe) < 0 || pipe(write_pipe) < 0)
-		eprint("pipe failure:");
+	if (pipe(child_pipe))
+		die("pipe:");
+
+	sock = dial(host, port); /* dies if cannot connect */
 
 	pid_t child_pid = fork();
 	if (child_pid < 0)
-		eprint("fork failure:");
-	else if (child_pid == 0) {
-		close(0);
-		close(1);
-		close(PARENT_READ);
-		close(PARENT_WRITE);
-		dup2(CHILD_READ, 0);
-		dup2(CHILD_WRITE, 1);
+		die("fork:");
 
-		execlp(cmd, (char *)NULL);
-		eprint("cannot execute client:");
-	} else {
-		close(CHILD_READ);
-		close(CHILD_WRITE);
+	if (child_pid == 0) {
+		dup2(child_pipe[0], 0); /* stdin */
+		dup2(sock, 1);          /* stdout */
+
+		close(child_pipe[0]);
+		close(child_pipe[1]);
+		close(sock);
+		close(fifo_fd);
+
+		execlp(cmd, cmd, NULL);
+		die("execlp '%s':", cmd);
 	}
+	close(child_pipe[0]);
 
-	srv = fdopen(dial(host, port), "r+");
-	if (!srv)
-		eprint("fdopen failure:");
-	setbuf(srv, NULL);
+	trespond = time(NULL);
+
+	FD_ZERO(&rdset);
 
 	max_fd = fifo_fd;
+	if (max_fd < sock)
+		max_fd = sock;
 
-	FD_ZERO(&master);
-	safe_fd_set(fileno(srv), &master, &max_fd);
-	safe_fd_set(fifo_fd, &master, &max_fd);
-	safe_fd_set(PARENT_READ, &master, &max_fd);
-
-	for(;;) {
-		rd = master;
+	for (;;) {
+		int n;
+		struct timeval tv;
 
 		tv.tv_sec = 120;
 		tv.tv_usec = 0;
 
-		n = select(max_fd + 1, &rd, 0, 0, &tv);
+		FD_SET(sock,    &rdset);
+		FD_SET(fifo_fd, &rdset);
 
-		if(n < 0) {
+		n = select(max_fd + 1, &rdset, NULL, NULL, &tv);
+
+		if (n < 0) {
 			if (errno == EINTR)
 				continue;
-			eprint("select failure:");
-		} else if (n == 0) {
+			die("select:");
+		}
+		if (n == 0) {
 			if (time(NULL) - trespond >= 300)
-				eprint("shutting down: ping timeout\n");
-			fprintf(srv, "PING %s\r\n", host);
+				die("shutting down: ping timeout");
+
+			dprintf(sock, "PING %s\r\n", host);
 			continue;
 		}
 
-		if (FD_ISSET(fileno(srv), &rd)) {
-			handle_server_output();
+		if (FD_ISSET(sock, &rdset)) {
 			trespond = time(NULL);
+			input_from_socket(sock, child_pipe[1]);
 		}
-		if (FD_ISSET(fifo_fd, &rd)) {
-			handle_fifo_input(fifo_fd);
-		}
-		if (FD_ISSET(PARENT_READ, &rd)) {
-			handle_child_output(PARENT_READ);
+
+		if (FD_ISSET(fifo_fd, &rdset)) {
+			input_from_fifo(fifo_fd, child_pipe[1]);
 		}
 	}
-	return 0;
 }

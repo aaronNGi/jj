@@ -94,6 +94,9 @@ BEGIN {
 	login(irc["nick"], irc["user"], irc["name"], irc["password"])
 }
 
+# Ignore malformed lines.
+!/^[iu] [0-9]+ ./ { next }
+
 # Our parent process receives the raw irc messages and reads user input.
 # Before sending it to us, the read lines are marked with a leading "u"
 # and "i" for user and irc respectively.
@@ -115,11 +118,6 @@ BEGIN {
 
 function handle_user_input()
 {
-	# A message shorter than 14 characters is equal to
-	# "u dddddddddd ", meaning it's an empty message and we should
-	# ignore it.
-	if (length($0) < 14) return
-
 	time=$2
 
 	# Commands are case-insensitive
@@ -127,7 +125,7 @@ function handle_user_input()
 
 	# Having saved the command, we can now remove everything up to the
 	# actual parameters.
-	sub(/^.{14} *[^ ]+ ?/, "")
+	sub(/^u [0-9]+ +[^ ]+ ?/, "")
 
 	if (cmd == "") { print_out("Missing command") }
 	else if (cmd == "action")   { cmd_msg("ACTION") }
@@ -156,10 +154,6 @@ function handle_user_input()
 # Before actual handling of the various message types, the raw irc
 # messages get parsed here.
 /^i / {
-	# Remove the trailing carriage return which all irc messages
-	# usually have.
-	sub(/\r$/, "")
-
 	parse_irc_input()
 	debug_irc()
 }
