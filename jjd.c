@@ -129,7 +129,7 @@ handle_sig_child(int sig)
 	if (sig != SIGCHLD)
 		abort();
 
-	exit(1);
+	die("child died\n");
 }
 
 static const char *
