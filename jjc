@@ -76,7 +76,7 @@ BEGIN {
 
 	# Try to create the "channels" directory while also creating all
 	# parent directories as needed.
-	local["retval"]=system("mkdir -p -- " local["path"])
+	local["retval"]=system("mkdir -p -- " local["path"] " >&2")
 
 	# If we fail to create the directory structure, there is no point
 	# in continuing.
