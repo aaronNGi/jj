@@ -3,8 +3,8 @@ INCS = -I. -I/usr/include
 LIBS = -L/usr/lib -lc
 
 CC = cc
-CPPFLAGS = -D_POSIX_SOURCE
-CFLAGS += -std=c99 -pedantic -Wall ${INCS} ${CPPFLAGS}
+CPPFLAGS = -D_POSIX_C_SOURCE=200809L
+CFLAGS += -pedantic -Wall ${INCS} ${CPPFLAGS}
 LDFLAGS = -s ${LIBS}
 
 SRC = jjd.c
