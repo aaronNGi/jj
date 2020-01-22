@@ -265,7 +265,8 @@ tac "$IRC_DIR/$IRC_HOST/channels/#channel.log" | grep -m10 -v '^\d\{10\} <->' | 
 #!/bin/sh -e
 
 fifo="$IRC_DIR/$IRC_HOST/in"
-[ -p "$fifo" ] && [ -w "$fifo" ]
+[ -p "$fifo" ] && [ -w "$fifo" ] ||
+	exit 1
 
 if [ "$IRC_HOST" = irc.freenode.org ]; then
 	printf 'raw PRIVMSG NickServ :IDENTIFY jilles foo\n' >"$fifo"
