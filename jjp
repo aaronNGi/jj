@@ -2,16 +2,14 @@
 
 BEGIN {
 	FS=" "
-	prevdate=""
-	if (length(ENVIRON["IRC_TERMTITLE"])) {
+	if (length(ENVIRON["IRC_TERMTITLE"]))
 		printf "\033]0;%s\a", ENVIRON["IRC_TERMTITLE"]
-	}
+
+	colors["-"]=length(ENVIRON["IRC_SERVERLOG"]) ? "0" : "38;5;8"
 
 	for (i=32; i < 127; i++)
 		char_to_num[sprintf("%c", i)]=i
-}
-
-{
+} {
 	if (NF < 2) {
 		printf "\n%s", $0
 		next
@@ -32,15 +30,37 @@ BEGIN {
 	msg=substr($0, index($0, ">") + 2 + length(type))
 	nick=substr($2, 2, nickend-2)
 
-	if ((color=colors[nick]) == "") {
-		i=0
-		sum=0
-		while ((num=char_to_num[substr(nick, ++i, 1)]) != "") {
-			sum=sum + num
-		}
-		colors[nick]=sum % 6 + 1
+	# Set the date color for highlights
+	if (index(type, "!")) {
+		printf "\a"
+		dcolor="31"
+	} else {
+		dcolor="38;5;8"
 	}
-	color=colors[nick]
+
+	# Status message
+	if (nick == "-") {
+		printf "\n\033[%sm%s \033[%sm%s\033[0m",
+			dcolor, date[2], colors["-"], msg
+		next
+	}
+
+	# My message
+	if (index(type, "*")) {
+		ncolor="0"
+
+	# Other message
+	} else {
+		# Calculate nick color if necessary
+		if ((ncolor=colors[nick]) == "") {
+			i=1
+			sum=0
+			while (char=substr(nick, i++, 1))
+				sum=sum + char_to_num[char]
+
+			ncolor=colors[nick]="3" sum % 6 + 1
+		}
+	}
 
 	# Handle ACTION
 	if (index(type, "a")) {
@@ -48,28 +68,6 @@ BEGIN {
 		nick="*"
 	}
 
-	# Status message
-	if (nick == "-") {
-		printf "\n\033[30m%s %s\033[0m" \
-			, date[2], msg
-
-	}
-	# My message
-	else if (index(type, "*")) {
-		printf "\n\033[30m%s\033[0m \033[37m%-10s\033[0m: %s" \
-			, date[2], nick, msg
-	}
-	# Other message mentioning me
-	else if (index(type, "!")) {	
-		printf "\n\a\033[33m%s\033[0m \033[3%dm%-10s\033[0m: %s" \
-			, date[2], color, nick, msg
-	}
-	# Other message
-	else {
-		printf "\n\033[30m%s\033[0m \033[3%dm%-10s\033[0m: %s" \
-			, date[2], color, nick, msg
-	}
-}
-END {
-	print ""
-}
+	printf "\n\033[%sm%s\033[0m \033[%sm%-10s\033[0m: %s",
+		dcolor, date[2], ncolor, nick, msg
+} END { print "" }
