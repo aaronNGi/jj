@@ -53,7 +53,7 @@ BEGIN {
 	# appended to "prefix", is then used as command when calling
 	# an external event script via ext_command().
 	command["prefix"]    = "irc_on_"
-	command["add"]       = "add_channel"
+	command["add"]       = "query"
 	command["connect"]   = "connect"
 	command["ctcp"]      = "ctcp"
 	command["highlight"] = "highlight"
@@ -647,9 +647,9 @@ function cmd_msg(realcmd,   new, suffix, target, text)
 		print_out($0, target, irc["nick"], suffix)
 
 		if (new)
-			ext_command("add", target, irc["nick"], $0)
+			ext_command("join", target)
 	} else if (new)
-		ext_command("add", target, irc["nick"])
+		ext_command("join", target)
 }
 
 function cmd_generic(realcmd, arg_min, arg_max, trailing_arg,
@@ -854,9 +854,10 @@ function on_msg(   char, ctcp, highlight, after, before,
 
 	# Call external command.  Newly added private message channels
 	# have precedence over highlights.
-	if (new)
+	if (new) {
+		ext_command("join", target)
 		ext_command("add", target, user, text)
-	else if (highlight)
+	} else if (highlight)
 		ext_command("highlight", target, user, text)
 
 	if (ctcp)
@@ -889,7 +890,7 @@ function on_join(   nick, chan, user)
 
 	if (is_me(nick)) {
 		print_out("Added channel " chan)
-		ext_command("join", chan, user, "")
+		ext_command("join", chan)
 	}
 }
 

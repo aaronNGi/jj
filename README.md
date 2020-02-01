@@ -212,16 +212,16 @@ The following programs are supported:
 
 |Name|Trigger|
 |-|-|
-|`irc_on_add_channel`|A private message channel is created.|
+|`irc_on_query`|A private message channel is created.|
 |`irc_on_connect`|Succesfully connecting to the server.|
 |`irc_on_ctcp`|Receiving a CTCP message.|
 |`irc_on_highlight`|Own nick is mentioned in a message.|
 |`irc_on_invite`|Being invited to join a channel.|
-|`irc_on_join`|A channel is joined.|
+|`irc_on_join`|A channel or private message channel is joined.|
 |`irc_on_kick`|We got kicked from a channel.|
 |`irc_on_part`|A channel is parted.|
 
-> **Note:** When a private message contains our nick but also caused the creation of a channel, instead of executing both, `irc_on_add_channel` *and* `irc_on_highlight`, only the former is triggered.
+> **Note:** When a private message contains our nick but also caused the creation of a channel, instead of executing both, `irc_on_query` *and* `irc_on_highlight`, only the former is triggered. Unlike `irc_on_join`, which is always triggered, creating empty private message channels via the `msg <nick>` command does not trigger `irc_on_query`.
 
 
 ### Examples
