@@ -441,6 +441,7 @@ function delete_nick_from_chan(nick, chan, text)
 	# If it's us who is to be deleted, delete the entire channel
 	# instead.
 	if (!is_chan(chan) || nick == irc["nick_lc"]) {
+		print_out("Closed channel: " chan)
 		print_out("Channel closed", chan)
 		delete channels[chan]
 		return 1
@@ -465,6 +466,7 @@ function delete_nick_from_all_chans(nick, text,   chan, str)
 		# private message channels, delete the entire channel
 		# instead.
 		if (!is_chan(chan) || nick == irc["nick_lc"]) {
+			print_out("Closed channel: " chan)
 			print_out("Channel closed", chan)
 			delete channels[chan]
 			continue
@@ -492,6 +494,7 @@ function rename_nick_in_all_chans(nick, new, text,   chan, me)
 
 		# Close private message channels when others rename.
 		if (!is_chan(chan) && !me) {
+			print_out("Closed channel: " chan)
 			print_out("Channel closed", chan)
 			delete channels[chan]
 			continue
@@ -621,7 +624,8 @@ function cmd_msg(realcmd,   new, suffix, target, text)
 		# Create the channel by setting its members to us and the
 		# target.
 		channels[target]=" " target "  " irc["nick_lc"] " "
-		print_out("Added channel " target)
+		print_out("New channel: " target)
+		print_out("Channel opened", target)
 		new=1
 	}
 
@@ -727,8 +731,9 @@ function cmd_part(   chan)
 			print_out(cmd ": channel " $1 " does not exist")
 			return
 		}
-		delete channels[chan]
+		print_out("Closed channel: " chan)
 		print_out("Channel closed", chan)
+		delete channels[chan]
 	} else {
 		cmd_generic("PART", 1, 0, 2)
 	}
@@ -823,7 +828,8 @@ function on_msg(   char, ctcp, highlight, after, before,
 	# Create new private message channel if necessary.
 	if (target && !(target in channels)) {
 		channels[target]=" " target "  " irc["nick_lc"] " "
-		print_out("Added channel " target, "", "", "!")
+		print_out("New channel: " target, "", "", "!")
+		print_out("Channel opened", target)
 		new=1
 	}
 
@@ -886,10 +892,13 @@ function on_join(   nick, chan, user)
 {
 	nick=source[1]; user=get_nickuserhost(); chan=param[1]
 
+	if (is_me(nick))
+		print_out("Channel opened", chan)
+
 	add_nick_to_chan(nick, chan, user " has joined " chan)
 
 	if (is_me(nick)) {
-		print_out("Added channel " chan)
+		print_out("New channel: " chan)
 		ext_command("join", chan)
 	}
 }
@@ -1239,8 +1248,9 @@ function on_nosuchnick(   nick, nick_lc, text)
 
 	if (nick_lc in channels) {
 		print_out(nick ": " text, nick_lc)
-		delete channels[nick]
+		print_out("Closed channel: " nick)
 		print_out("Channel closed", nick)
+		delete channels[nick]
 	}
 }
 
