@@ -221,7 +221,7 @@ The following programs are supported:
 |`irc_on_kick`|We got kicked from a channel.|
 |`irc_on_part`|A channel is parted.|
 
-> **Note:** When a private message contains our nick but also caused the creation of a channel, instead of executing both, `irc_on_query` *and* `irc_on_highlight`, only the former is triggered. Unlike `irc_on_join`, which is always triggered, creating empty private message channels via the `msg <nick>` command does not trigger `irc_on_query`.
+> **Note:** When a private message contains our nick but also caused the creation of a channel, instead of executing both, `irc_on_query` *and* `irc_on_highlight`, only the former is triggered. Unlike `irc_on_join`, which is always triggered, `irc_on_query` is not triggered when we caused the channel creation.
 
 
 ### Examples
