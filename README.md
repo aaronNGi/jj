@@ -1,13 +1,14 @@
-# jj
+ jj
+==========================================================================
 
 A file-based IRC client.
 
 ![Image of jjp sample output](
 https://raw.githubusercontent.com/aaronNGi/jj/master/jjp.png)
 
---------------------------------------------------------------------------
 
-## Index
+ Index
+--------------------------------------------------------------------------
 
 * [Concepts](#concepts)
 * [Dependencies](#dependencies)
@@ -20,9 +21,9 @@ https://raw.githubusercontent.com/aaronNGi/jj/master/jjp.png)
 * [Hooks](#hooks)
 * [Examples](#examples)
 
---------------------------------------------------------------------------
 
-## Concepts
+ Concepts
+--------------------------------------------------------------------------
 
 jj is an evolution of the [ii(1)][ii homepage] IRC client. It is a small
 suite of programs consisting of the following three (interchangeable)
@@ -71,15 +72,16 @@ notifications. The `irc_on_join` script could be used to automatically
 open new windows in `tmux(1)`, whenever a channel is joined. See
 [Hooks](#hooks) for more details.
 
+
+ Dependencies
 --------------------------------------------------------------------------
 
-## Dependencies
+Nothing but a C compiler and `awk(1)`. `jjp(1)` requires an `awk(1)`
+implementation with support for time functions.
 
-Nothing but a C compiler and `awk(1)`.
 
+ Installation
 --------------------------------------------------------------------------
-
-## Installation
 
 As root user:
 
@@ -96,9 +98,9 @@ make PREFIX=~/.local install
 PATH=~/.local/bin:$PATH
 ```
 
---------------------------------------------------------------------------
 
-## Usage
+ Usage
+--------------------------------------------------------------------------
 
 None of the programs have any options and instead are controlled entirely
 by environment variables. To change the defaults, it makes sense to put
@@ -160,9 +162,9 @@ The output of that channel can then be read from `channels/#foobar.log`.
 
 See [Examples](#examples) for more advanced usage.
 
---------------------------------------------------------------------------
 
-## Directory Structure
+ Directory Structure
+--------------------------------------------------------------------------
 
 ```
 irc.freenode.org/
@@ -182,9 +184,9 @@ named `in` is a named pipe, used for sending messages to the IRC server.
 The `channels` directory contains log files of channels and private
 messages.
 
---------------------------------------------------------------------------
 
-## Input Commands
+ Input Commands
+--------------------------------------------------------------------------
 
 These are the input commands supported by `jjc(1)`. All commands are
 case-insensitive. "target" is a channel or a nickname. Parameters marked
@@ -220,9 +222,9 @@ supported by `jjc(1)`.
 >           could be used to auth with services to prevent passwords from
 >           being written to the logs.
 
---------------------------------------------------------------------------
 
-## Environment Variables
+ Environment Variables
+--------------------------------------------------------------------------
 
 ### Settings
 
@@ -254,9 +256,9 @@ available to the called program:
 | `IRC_CASEMAPPING` | The servers casemapping. For rfc1459 for example, its value would be `][\~A-Z }{\|^a-z`, which can be split on space and then used as arguments for `tr(1)`, to properly casefold a string.
 | `IRC_AWAY`        | 1 when we are marked away, empty otherwise.
 
---------------------------------------------------------------------------
 
-## Log Format
+ Log Format
+--------------------------------------------------------------------------
 
 The general log format is:
 
@@ -284,9 +286,9 @@ of the message.
 > **Note:** For messages without an author (server messages), a single
 >           dash is used as nickname.
 
---------------------------------------------------------------------------
 
-## Hooks
+ Hooks
+--------------------------------------------------------------------------
 
 Certain events trigger the execution of external programs. Those programs
 have to be executable and in `PATH` and they are run with an altered
@@ -312,9 +314,9 @@ The following programs are supported:
 >           `irc_on_query` is not triggered when we caused the channel
 >           creation by messaging another user.
 
---------------------------------------------------------------------------
 
-## Examples
+ Examples
+--------------------------------------------------------------------------
 
 ### Watching Logs
 
