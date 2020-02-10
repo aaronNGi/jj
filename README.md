@@ -1,4 +1,4 @@
- jj
+ jj irc
 ==========================================================================
 
 A file-based IRC client.
@@ -20,22 +20,25 @@ https://raw.githubusercontent.com/aaronNGi/jj/master/jjp.png)
 * [Log Format](#log-format)
 * [Hooks](#hooks)
 * [Examples](#examples)
+* [Community](#ecommunity)
 
 
  Concepts
 --------------------------------------------------------------------------
 
-jj is an evolution of the [ii(1)][ii homepage] IRC client. It is a small
-suite of programs consisting of the following three (interchangeable)
+jj irc is an evolution of the [ii(1)][ii homepage] IRC client. It is a
+suite of multiple smaller programs which together form a full-fledged
+IRC client. It consists of the following three (interchangeable) core
 components:
 
 1. `jjd` - The daemon. It does the bare minimum like connecting to the
            IRC server and reading user input from a named pipe (fifo). It
-           spawns a child and sends all user and IRC messages to it. Text
-           coming from the child is send to the IRC server. Written in C.
+           spawns a child and forwards all user and IRC messages to it.
+           Text printed by the child is directly forwarded to the IRC
+           server. Written in C.
 2. `jjc` - The client. Gets spawned as child of `jjd` and handles the
-           more typical IRC client things. Written in awk.
-3. `jjp` - Pretty prints log files from disk or stdin. Written in awk.
+           more typical IRC client things. Written in AWK.
+3. `jjp` - Pretty prints log files from disk or stdin. Written in AWK.
 
 jj tries to stay true to the UNIX philosophy, which says:
 
@@ -76,8 +79,9 @@ open new windows in `tmux(1)`, whenever a channel is joined. See
  Dependencies
 --------------------------------------------------------------------------
 
-Nothing but a C compiler and `awk(1)`. `jjp(1)` requires an `awk(1)`
-implementation with support for time functions.
+Nothing but a C compiler and `awk(1)`. However, `jjp(1)` requires an
+`awk(1)` implementation with support for time functions (`strftime` in
+particular).
 
 
  Installation
@@ -103,10 +107,11 @@ PATH=~/.local/bin:$PATH
 --------------------------------------------------------------------------
 
 None of the programs have any options and instead are controlled entirely
-by environment variables. To change the defaults, it makes sense to put
-the desired changes into `~/.profile`, so they don't have to be entered
-manually for every `jjd(1)` invocation. For the full list of variables,
-see the [Environment Variables](#environment-variables) section.
+by environment variables. To change the defaults, it makes sense to add
+the desired changes to `~/.profile` or similar, so that they don't have to
+be entered manually for every `jjd(1)` invocation. For the full list of
+variables, see the [Environment Variables](#environment-variables)
+section.
 
 ### Connecting to a Server
 
@@ -122,8 +127,8 @@ Or:
 IRC_HOST=irc.rizon.net jjd
 ```
 
-By default it connects to irc.freenode.org, using the current user as
-nickname and creates the directory "irc.freenode.org" in the current
+By default `jjd(1)` connects to irc.freenode.org, using the current user
+as nickname and creates the directory "irc.freenode.org" in the current
 working directory. Located in that directory will be the various log
 files and the named pipe for input. For more information, see [Directory
 Structure](#directory-structure) and [Input Commands](#input-commands).
@@ -149,22 +154,31 @@ cat server.log
 To join a channel and say something in it, run:
 
 ```shell
-echo "join #foobar" >in
+echo 'join #jj' >in
 ```
 
 And then:
 
 ```shell
-echo "msg #foobar Hello, World!" >in
+echo 'msg #jj Hello, World!' >in
 ```
 
 The output of that channel can then be read from `channels/#foobar.log`.
 
-See [Examples](#examples) for more advanced usage.
+Because nobody wants to type that full command for every message, a simple
+loop can make this more convenient:
+
+```shell
+while IFS= read -r line; do printf 'msg #foobar %s\n' "$line"; done
+```
+
+See [Examples](#examples) for a more elaborate version of that input-loop.
 
 
  Directory Structure
 --------------------------------------------------------------------------
+
+The following shows a typical channel structure tree created by jj irc.
 
 ```
 irc.freenode.org/
@@ -184,13 +198,16 @@ named `in` is a named pipe, used for sending messages to the IRC server.
 The `channels` directory contains log files of channels and private
 messages.
 
+> **Note:** The directories and the in-fifo are created by `jjd(1)`, while
+>          all the logfiles are created by `jjc(1)`.
+
 
  Input Commands
 --------------------------------------------------------------------------
 
 These are the input commands supported by `jjc(1)`. All commands are
-case-insensitive. "target" is a channel or a nickname. Parameters marked
-with an asterisk are optional.
+case-insensitive. "target" is a channel or a nickname. Parameters in
+square brackets are optional.
 
 | Command    | Parameter 1            | Parameter 2                | Parameter 3      | Description |
 |------------|------------------------|----------------------------|------------------|-------------|
@@ -198,29 +215,29 @@ with an asterisk are optional.
 | `me`       | target                 | message                    | n/a              | An alias for `action`.
 | `away`     | away text*             | n/a                        | n/a              | Mark yourself as away. Without parameters it unsets away.
 | `invite`   | nickname               | channel                    | n/a              | Invite a user to a channel.
-| `join`     | channel1[,channel2]... | \*password1[,password2]... | n/a              | Join channels.
-| `kick`     | channel                | nickname                   | \*reason         | Kick a user from a channel.
+| `join`     | channel1[,channel2]... | [password1[,password2]...] | n/a              | Join channels.
+| `kick`     | channel                | nickname                   | [reason]         | Kick a user from a channel.
 | `list`     | n/a                    | n/a                        | n/a              | Print a list of all currently open channels (including private message channels).
 | `ls`       | n/a                    | n/a                        | n/a              | An alias for `list`.
-| `message`  | target                 | \*message                  | n/a              | Send a message to a channel or user. When messaging a user, the message text can be omitted to create a private message channel.
-| `msg`      | target                 | \*message                  | n/a              | An alias for `message`.
-| `mode`     | target                 | \*mode                     | \*mode parameter | Set various user or channel modes. `mode #channel +b` requests the channels banlist. `mode #channel` requests the current mode.
+| `message`  | target                 | [message]                  | n/a              | Send a message to a channel or user. When messaging a user, the message text can be omitted to create a private message channel.
+| `msg`      | target                 | [message]                  | n/a              | An alias for `message`.
+| `mode`     | target                 | [mode]                     | [mode parameter] | Set various user or channel modes. `mode #channel +b` requests the channels banlist. `mode #channel` requests the current mode.
 | `names`    | channel                | n/a                        | n/a              | Request the names listing of a channel.
 | `nick`     | nickname               | n/a                        | n/a              | Change your nickname.
-| `notice`   | target                 | \*message                  | n/a              | Send a notice to a channel or user. The same rules as with `message` apply.
-| `part`     | target                 | \*reason                   | n/a              | Leave a channel or close a private message channel.
+| `notice`   | target                 | [message]                  | n/a              | Send a notice to a channel or user. The same rules as with `message` apply.
+| `part`     | target                 | [reason]                   | n/a              | Leave a channel or close a private message channel.
 | `quit`     | \*reason               | n/a                        | n/a              | Disconnect from the server and quit jj.
 | `topic`    | channel                | n/a                        | n/a              | Request the topic of a channel.
-| `topicset` | channel                | \*topic                    | n/a              | Set the topic of a channel. Omitting the second parameter removes the channel topic.
+| `topicset` | channel                | [topic]                    | n/a              | Set the topic of a channel. Omitting the second parameter removes the channel topic.
 | `whois`    | nickname               | n/a                        | n/a              | Request the whois information of a user.
 
 Additionally, the `raw` command can be used to send IRC commands not
 supported by `jjc(1)`.
 
-> **Note:** Using `raw` to message/notice a channel or user results in
+> **Note:** Using `raw` to message or notice a channel or user results in
 >           the message not being printed locally (to the log file). It
 >           could be used to auth with services to prevent passwords from
->           being written to the logs.
+>           being written to the logs in plain text.
 
 
  Environment Variables
@@ -242,9 +259,8 @@ supported by `jjc(1)`.
 
 ### Special Information for Hooks
 
-When [Hooks](#hooks) are being run, in addition to inheriting the setting
-variables from above, the following environment variables are also
-available to the called program:
+When [Hooks](#hooks) are being run, the following additional environment
+variables are also available to the called program:
 
 | Name              | Description |
 |-------------------|-------------|
@@ -266,11 +282,11 @@ The general log format is:
 1579093317 <user123>n! Hello, World!
 ```
 
-The "1579093317" is the seconds since epoch (UTC). It can be converted to
-the current timezone and a readable format, which `jjc(1)` does
-automatically. The second part is the nickname of the message author with
-a suffix indicating message types. The "Hello, World!" is the actual body
-of the message.
+The "1579093317" is the seconds since epoch. It can be converted to the
+current timezone and a readable format, which `jjc(1)` does automatically.
+The second part is the nickname of the message author with a suffix
+indicating message types. The "Hello, World!" is the actual body of the
+message.
 
 `jjc(1)` uses the following message type indicators:
 
@@ -290,9 +306,10 @@ of the message.
  Hooks
 --------------------------------------------------------------------------
 
-Certain events trigger the execution of external programs. Those programs
-have to be executable and in `PATH` and they are run with an altered
-environment (See: [Environment Variables](#environment-variables)).
+Certain events can trigger the execution of external programs. Those
+programs have to be executable and in `PATH` and they are run with an
+altered environment (See: [Environment
+Variables](#environment-variables)).
 
 The following programs are supported:
 
@@ -350,7 +367,7 @@ jji \#channel
 ```shell
 tac "$IRC_DIR/$IRC_HOST/channels/#channel.log" |
 	grep -m10 -v '^\d\{10\} <->' |
-	tac
+	tac | jjp
 ```
 
 ### A Sample irc_on_connect
@@ -365,8 +382,13 @@ fifo="$IRC_DIR/$IRC_HOST/in"
 if [ "$IRC_HOST" = irc.freenode.org ]; then
 	printf 'raw PRIVMSG NickServ :IDENTIFY jilles foo\n' >"$fifo"
 	sleep .5
-	printf 'join #kisslinux\n' >"$fifo"
+	printf 'join #jj\n' >"$fifo"
 fi
 ```
+
+ Community
+--------------------------------------------------------------------------
+
+Join `#jj` on irc.freenode.org
 
 [ii homepage]: https://tools.suckless.org/ii/
