@@ -20,7 +20,7 @@ https://raw.githubusercontent.com/aaronNGi/jj/master/jjp.png)
 * [Log Format](#log-format)
 * [Hooks](#hooks)
 * [Examples](#examples)
-* [Community](#ecommunity)
+* [Community](#community)
 
 
  Concepts
@@ -163,13 +163,13 @@ And then:
 echo 'msg #jj Hello, World!' >in
 ```
 
-The output of that channel can then be read from `channels/#foobar.log`.
+The output of that channel can then be read from `channels/\#jj.log`.
 
 Because nobody wants to type that full command for every message, a simple
 loop can make this more convenient:
 
 ```shell
-while IFS= read -r line; do printf 'msg #foobar %s\n' "$line"; done
+while IFS= read -r line; do printf 'msg #jj %s\n' "$line"; done
 ```
 
 See [Examples](#examples) for a more elaborate version of that input-loop.
@@ -183,7 +183,7 @@ The following shows a typical channel structure tree created by jj irc.
 ```
 irc.freenode.org/
 ├── channels/
-│   ├── #channel.log
+│   ├── #jj.log
 │   ├── freenode-connect.log
 │   └── nickserv.log
 ├── in
@@ -237,7 +237,7 @@ supported by `jjc(1)`.
 > **Note:** Using `raw` to message or notice a channel or user results in
 >           the message not being printed locally (to the log file). It
 >           could be used to auth with services to prevent passwords from
->           being written to the logs in plain text.
+>           being written to the logs.
 
 
  Environment Variables
@@ -328,7 +328,7 @@ The following programs are supported:
 >           creation of a channel, instead of executing both,
 >           `irc_on_query` *and* `irc_on_highlight`, only the former is
 >           triggered. Unlike `irc_on_join`, which is always triggered,
->           `irc_on_query` is not triggered when we caused the channel
+>           `irc_on_query` is not triggered when *we* caused the channel
 >           creation by messaging another user.
 
 
@@ -357,12 +357,16 @@ jji() {
 	[ -p "$fifo" ] && [ -w "$fifo" ] ||
 		return 1
 
-	while \
-		printf '%s: ' "$1" >&2 &&
+	while
+		printf '\033[37m%s\033[0m> ' "$1" >&2 &&
 		IFS= read -r line ||
 		[ -n "$line" ]
 	do
-		printf "msg %s %s\n" "$1" "$line"
+		case $line in
+			/[!/]*) line=${line#?} ;;
+			*) line="msg $1 $line" ;;
+		esac
+		printf %s\\n "$line"
 	done >"$fifo"
 }
 jji \#channel
@@ -392,8 +396,11 @@ if [ "$IRC_HOST" = irc.freenode.org ]; then
 fi
 ```
 
+
  Community
 --------------------------------------------------------------------------
+
+### IRC
 
 Join `#jj` on irc.freenode.org
 
