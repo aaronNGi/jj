@@ -805,6 +805,13 @@ function on_msg(   char, ctcp, highlight, after, before,
 				target=substr(target, pos)
 			}
 		}
+
+		# The target channel not existing means the message target
+		# parameter must be a wildcard.  This is the case for
+		# server-wide notifications for instance.  Instead of
+		# using that wildcard as target channel, use source.
+		if (!(target in channels))
+			target=irc_tolower(source[1])
 	}
 
 	user=get_nickuserhost()
