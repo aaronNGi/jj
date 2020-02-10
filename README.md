@@ -335,6 +335,12 @@ The following programs are supported:
  Examples
 --------------------------------------------------------------------------
 
+### Automatic Reconnection
+
+```shell
+while :; do jjd; sleep 5; done
+```
+
 ### Watching Logs
 
 ```shell
