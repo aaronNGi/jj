@@ -1,10 +1,6 @@
 #!/usr/bin/awk -f
 
-BEGIN {
-	FS=" "
-	if (length(ENVIRON["IRC_TERMTITLE"]))
-		printf "\033]0;%s\a", ENVIRON["IRC_TERMTITLE"]
-} {
+BEGIN { FS=" " } {
 	if (NF < 2) {
 		printf "\n%s", $0
 		next
@@ -31,6 +27,12 @@ BEGIN {
 		dcolor="33"
 	} else {
 		dcolor="38;5;8"
+	}
+
+	# When JJ_SERVERLOG is set, print messages in the default color.
+	if (ENVIRON["JJ_SERVERLOG"] != "") {
+		printf "\n\033[%sm%s\033[0m %s", dcolor, date[2], msg
+		next
 	}
 
 	# Status message.

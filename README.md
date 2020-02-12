@@ -255,7 +255,6 @@ supported by `jjc(1)`.
 | `IRC_PORT`     | Connect using this port.                                                          | `6667`                  |
 | `IRC_REALNAME` | The real name to use. Can be seen in `whois`.                                     | `$USER`                 |
 | `IRC_USER`     | The user name to use.                                                             | `$USER`                 |
-| `JJ_DEBUG`     | When set, makes `jjc(1)` print debug output.                                      | unset                   |
 
 ### Special Information for Hooks
 
@@ -271,6 +270,13 @@ variables are also available to the called program:
 | `IRC_WHO`         | Who triggered this hook, e.g. the nickname of the message author. If applicable, empty otherwise.
 | `IRC_CASEMAPPING` | The servers casemapping. For rfc1459 for example, its value would be `][\~A-Z }{\|^a-z`, which can be split on space and then used as arguments for `tr(1)`, to properly casefold a string.
 | `IRC_AWAY`        | 1 when we are marked away, empty otherwise.
+
+### Misc
+
+| Name           | Description |
+|----------------|-------------|
+| `JJ_SERVERLOG` | When not empty, `jjp(1)` will print status messages using the default color.
+| `JJ_DEBUG`     | When not emtpy, `jjc(1)` will print debug output.
 
 
  Log Format
