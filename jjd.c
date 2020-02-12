@@ -191,6 +191,14 @@ main(int argc, char **argv)
 	const char *port   = variable("IRC_PORT",   DEFAULT_PORT);
 	const char *cmd    = variable("IRC_CLIENT", DEFAULT_CMD);
 
+        setenv("IRC_DIR", DEFAULT_DIR, 0);
+        setenv("IRC_HOST", DEFAULT_HOST, 0);
+        setenv("IRC_PORT", DEFAULT_PORT, 0);
+        setenv("IRC_CLIENT", DEFAULT_CMD, 0);
+        setenv("IRC_NICK", getenv("USER"), 0);
+        setenv("IRC_REALNAME", getenv("USER"), 0);
+        setenv("IRC_USER", getenv("USER"), 0);
+
 	prog = argc ? argv[0] : "jjd";
 
 	fifo_fd = fifo_setup(ircdir, host);
