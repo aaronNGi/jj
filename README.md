@@ -347,45 +347,31 @@ while :; do jjd; sleep 5; done
 tail -fn100 "$IRC_DIR/$IRC_HOST/channels/#channel.log" | jjp
 ```
 
-### A Simple Input Method
+### Ignoring Certain Nicks
 
 ```shell
-jji() {
-	: "${1:?Missing channel argument}"
-
-	fifo="$IRC_DIR/$IRC_HOST/in"
-	[ -p "$fifo" ] && [ -w "$fifo" ] ||
-		return 1
-
-	while
-		printf '\033[37m%s\033[0m> ' "$1" >&2 &&
-		IFS= read -r line ||
-		[ -n "$line" ]
-	do
-		case $line in
-			/[!/]*) line=${line#?} ;;
-			*) line="msg $1 $line" ;;
-		esac
-		printf %s\\n "$line"
-	done >"$fifo"
-}
-jji \#channel
+tail -fn100 "$IRC_DIR/$IRC_HOST/channels/#channel.log" |
+	grep -iv '^.\{10\} <nick>' | jjp
 ```
 
-### Print the Last 10 User Messages
+### Printing Last n User Messages
 
 ```shell
 tac "$IRC_DIR/$IRC_HOST/channels/#channel.log" |
-	grep -m10 -v '^\d\{10\} <->' |
+	grep -m10 -v '^.\{10\} <->' |
 	tac | jjp
 ```
+
+### A Simple Input Method
+
+See [jji](extra/jji) in [extra](extra).
 
 ### A Sample irc_on_connect
 
 ```sh
 #!/bin/sh -e
 
-fifo="$IRC_DIR/$IRC_HOST/in"
+fifo=$IRC_DIR/$IRC_HOST/in
 [ -p "$fifo" ] && [ -w "$fifo" ] ||
 	exit 1
 
