@@ -213,7 +213,7 @@ square brackets are optional.
 |------------|------------------------|----------------------------|------------------|-------------|
 | `action`   | target                 | message                    | n/a              | Send an action message to a user or channel.
 | `me`       | target                 | message                    | n/a              | An alias for `action`.
-| `away`     | away text\*            | n/a                        | n/a              | Mark yourself as away. Without parameters it unsets away.
+| `away`     | [away text]            | n/a                        | n/a              | Mark yourself as away. Without parameters it unsets away.
 | `invite`   | nickname               | channel                    | n/a              | Invite a user to a channel.
 | `join`     | channel1[,channel2]... | [password1[,password2]...] | n/a              | Join channels.
 | `kick`     | channel                | nickname                   | [reason]         | Kick a user from a channel.
@@ -226,7 +226,7 @@ square brackets are optional.
 | `nick`     | nickname               | n/a                        | n/a              | Change your nickname.
 | `notice`   | target                 | [message]                  | n/a              | Send a notice to a channel or user. The same rules as with `message` apply.
 | `part`     | target                 | [reason]                   | n/a              | Leave a channel or close a private message channel.
-| `quit`     | \*reason               | n/a                        | n/a              | Disconnect from the server and quit jj.
+| `quit`     | [reason]               | n/a                        | n/a              | Disconnect from the server and quit jj.
 | `topic`    | channel                | n/a                        | n/a              | Request the topic of a channel.
 | `topicset` | channel                | [topic]                    | n/a              | Set the topic of a channel. Omitting the second parameter removes the channel topic.
 | `whois`    | nickname               | n/a                        | n/a              | Request the whois information of a user.
