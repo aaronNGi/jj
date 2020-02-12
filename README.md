@@ -4,7 +4,7 @@
 A file-based IRC client.
 
 ![Image of jjp sample output](
-https://raw.githubusercontent.com/aaronNGi/jj/master/jjp.png)
+https://raw.githubusercontent.com/aaronNGi/jj/master/jjirc.png)
 
 
  Index
