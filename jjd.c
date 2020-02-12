@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <pwd.h>
 
 #include "config.h"
 
@@ -133,20 +134,7 @@ handle_sig_child(int sig)
 	die("child died\n");
 }
 
-static const char *
-variable(const char *name, const char *def)
-{
-	const char *cp;
-
-	cp = getenv(name);
-	if (cp == NULL)
-		cp = def;
-
-	return (cp);
-}
-
 /* fifo is opened read and write, so there is never EOF */
-
 static int
 fifo_setup(const char *dir, const char *host)
 {
@@ -178,6 +166,26 @@ fifo_setup(const char *dir, const char *host)
 	return (fd);
 }
 
+static const char *
+get_username()
+{
+	struct passwd *pw = getpwuid(geteuid());
+	if (pw == NULL)
+		die("cannot get username:");
+
+	return pw->pw_name;
+	
+}
+
+static const char *
+set_var(const char *name, const char *def)
+{
+	if (setenv(name, def, 0) == -1)
+		die("cannot set environment variable '%s':", name);
+
+	return getenv(name);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -185,21 +193,15 @@ main(int argc, char **argv)
 	int child_pipe[2];
 	time_t trespond;
 	fd_set rdset;
-
-	const char *ircdir = variable("IRC_DIR",    DEFAULT_DIR);
-	const char *host   = variable("IRC_HOST",   DEFAULT_HOST);
-	const char *port   = variable("IRC_PORT",   DEFAULT_PORT);
-	const char *cmd    = variable("IRC_CLIENT", DEFAULT_CMD);
-
-        setenv("IRC_DIR", DEFAULT_DIR, 0);
-        setenv("IRC_HOST", DEFAULT_HOST, 0);
-        setenv("IRC_PORT", DEFAULT_PORT, 0);
-        setenv("IRC_CLIENT", DEFAULT_CMD, 0);
-        setenv("IRC_NICK", getenv("USER"), 0);
-        setenv("IRC_REALNAME", getenv("USER"), 0);
-        setenv("IRC_USER", getenv("USER"), 0);
-
 	prog = argc ? argv[0] : "jjd";
+
+	const char *ircdir = set_var("IRC_DIR",    DEFAULT_DIR);
+	const char *host   = set_var("IRC_HOST",   DEFAULT_HOST);
+	const char *port   = set_var("IRC_PORT",   DEFAULT_PORT);
+	const char *cmd    = set_var("IRC_CLIENT", DEFAULT_CMD);
+	const char *nick   = set_var("IRC_NICK",   get_username());
+	set_var("IRC_USER", nick);
+	set_var("IRC_REALNAME", nick);
 
 	fifo_fd = fifo_setup(ircdir, host);
 
