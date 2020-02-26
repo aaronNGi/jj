@@ -189,7 +189,7 @@ set_var(const char *name, const char *def)
 int
 main(int argc, char **argv)
 {
-	int sock, fifo_fd, max_fd;
+	int sock_in, sock_out, fifo_fd, max_fd;
 	int child_pipe[2];
 	time_t trespond;
 	fd_set rdset;
@@ -214,7 +214,14 @@ main(int argc, char **argv)
 	if (pipe(child_pipe))
 		die("pipe:");
 
-	sock = dial(host, port); /* dies if cannot connect */
+	if (getenv("PROTO") == 0) {
+		/* dies if cannot connect */
+		sock_in = sock_out = dial(host, port);
+	} else {
+		/* UCSPI sockets */
+		sock_in = 6;
+		sock_out = 7;
+	}
 
 	pid_t child_pid = fork();
 	if (child_pid < 0)
@@ -222,11 +229,12 @@ main(int argc, char **argv)
 
 	if (child_pid == 0) {
 		dup2(child_pipe[0], 0); /* stdin */
-		dup2(sock, 1);          /* stdout */
+		dup2(sock_out, 1);      /* stdout */
 
 		close(child_pipe[0]);
 		close(child_pipe[1]);
-		close(sock);
+		close(sock_in);
+		close(sock_out);
 		close(fifo_fd);
 
 		execlp(cmd, cmd, NULL);
@@ -239,8 +247,8 @@ main(int argc, char **argv)
 	FD_ZERO(&rdset);
 
 	max_fd = fifo_fd;
-	if (max_fd < sock)
-		max_fd = sock;
+	if (max_fd < sock_out)
+		max_fd = sock_out;
 
 	for (;;) {
 		int n;
@@ -249,8 +257,9 @@ main(int argc, char **argv)
 		tv.tv_sec = 120;
 		tv.tv_usec = 0;
 
-		FD_SET(sock,    &rdset);
-		FD_SET(fifo_fd, &rdset);
+		FD_SET(sock_in,  &rdset);
+		FD_SET(sock_out, &rdset);
+		FD_SET(fifo_fd,  &rdset);
 
 		n = select(max_fd + 1, &rdset, NULL, NULL, &tv);
 
@@ -263,13 +272,13 @@ main(int argc, char **argv)
 			if (time(NULL) - trespond >= 300)
 				die("shutting down: ping timeout");
 
-			dprintf(sock, "PING %s\r\n", host);
+			dprintf(sock_out, "PING %s\r\n", host);
 			continue;
 		}
 
-		if (FD_ISSET(sock, &rdset)) {
+		if (FD_ISSET(sock_in, &rdset)) {
 			trespond = time(NULL);
-			input_from_socket(sock, child_pipe[1]);
+			input_from_socket(sock_in, child_pipe[1]);
 		}
 
 		if (FD_ISSET(fifo_fd, &rdset)) {
