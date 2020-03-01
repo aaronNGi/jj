@@ -79,9 +79,7 @@ open new windows in `tmux(1)`, whenever a channel is joined. See
  Dependencies
 --------------------------------------------------------------------------
 
-Nothing but a C compiler and `awk(1)`. However, `jjp(1)` requires an
-`awk(1)` implementation with support for time functions (`strftime` in
-particular).
+Nothing but a C compiler and `awk(1)`.
 
 
  Installation
