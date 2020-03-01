@@ -1,19 +1,68 @@
 #!/usr/bin/awk -f
 
+function isleap(year)
+{
+	return (year % 4 == 0) && (year % 100 != 0) || (year % 400 == 0)
+}
+
+function mdays(mon, year)
+{
+	return (mon == 2) ? (28 + isleap(year)) : (30 + (mon + (mon > 7)) % 2)
+}
+
+# Split the time in seconds since epoch into a table, with fields
+# named as with gmtime(3): tm["year"], tm["mon"], tm["mday"],
+# tm["hour"], tm["min"], tm["sec"]
+function gmtime(sec, tm)
+{
+	tm["year"] = 1970
+	while (sec >= (s = 86400 * (365 + isleap(tm["year"])))) {
+		tm["year"]++
+		sec -= s
+	}
+
+	tm["mon"] = 1
+	while (sec >= (s = 86400 * mdays(tm["mon"], tm["year"]))) {
+		tm["mon"]++
+		sec -= s
+	}
+
+	tm["mday"] = 1
+	while (sec >= (s = 86400)) {
+		tm["mday"]++
+		sec -= s
+	}
+
+	tm["hour"] = 0
+	while (sec >= 3600) {
+		tm["hour"]++
+		sec -= 3600
+	}
+
+	tm["min"] = 0
+	while (sec >= 60) {
+		tm["min"]++
+		sec -= 60
+	}
+
+	tm["sec"] = sec
+}
+
 BEGIN { FS=" " } {
 	if (NF < 2) {
 		printf "\n%s", $0
 		next
 	}
 
-	# Split date into date[1] and time into date[2].
-	split(strftime("%a %b %d %Y_%H:%M", $1), date, "_")
+	gmtime($1, tm)
+	date = sprintf("%04d/%02d/%02d", tm["year"], tm["mon"], tm["mday"])
+	time = sprintf("%02d:%02d:%02d", tm["hour"], tm["min"], tm["sec"])
 
 	# Display date only when it actually changed.
-	if (lastdate != date[1]) {
-		lastdate = date[1]
+	if (lastdate != date) {
+		lastdate = date
 		printf "%s\033[37m-- %s --\033[0m",
-			NR != 1 ? "\n\n" : "", date[1]
+			(NR != 1 ? "\n\n" : ""), date
 	}
 
 	nickend=index($2, ">")
@@ -31,14 +80,14 @@ BEGIN { FS=" " } {
 
 	# When JJ_SERVERLOG is set, print messages in the default color.
 	if (ENVIRON["JJ_SERVERLOG"] != "") {
-		printf "\n\033[%sm%s\033[0m %s", dcolor, date[2], msg
+		printf "\n\033[%sm%s\033[0m %s", dcolor, time, msg
 		next
 	}
 
 	# Status message.
 	if (nick == "-") {
 		printf "\n\033[%sm%s \033[%sm%s\033[0m",
-			dcolor, date[2], "38;5;8", msg
+			dcolor, time, "38;5;8", msg
 		next
 	}
 
@@ -64,5 +113,5 @@ BEGIN { FS=" " } {
 	}
 
 	printf "\n\033[%sm%s\033[0m \033[%sm%10s\033[0m: %s",
-		dcolor, date[2], ncolor, nick, msg
+		dcolor, time, ncolor, nick, msg
 } END { print "" }
