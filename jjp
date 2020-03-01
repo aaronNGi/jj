@@ -52,13 +52,27 @@ function gmtime(sec, tm)
 	tm["sec"]=sec
 }
 
-BEGIN { FS=" " } {
+function tz(   cmd, date, h, m)
+{
+	cmd="date +%z 2>/dev/null"
+	cmd | getline date
+	close(cmd)
+
+	h=substr(date, 2, 2)
+	m=substr(date, 4, 2)
+	tzoffset=substr(date, 1, 1) (h * 3600 + m * 60)
+}
+
+BEGIN {
+	FS=" "
+	tz()
+} {
 	if (NF < 2) {
 		printf "\n%s", $0
 		next
 	}
 
-	gmtime($1, tm)
+	gmtime($1 + tzoffset, tm)
 	date=sprintf("%04d/%02d/%02d", tm["year"], tm["mon"], tm["mday"])
 	time=sprintf("%02d:%02d", tm["hour"], tm["min"])
 
