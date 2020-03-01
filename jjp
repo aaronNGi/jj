@@ -2,50 +2,54 @@
 
 function isleap(year)
 {
-	return (year % 4 == 0) && (year % 100 != 0) || (year % 400 == 0)
+	return (year % 4 == 0) \
+		&& (year % 100 != 0) \
+		|| (year % 400 == 0)
 }
 
 function mdays(mon, year)
 {
-	return (mon == 2) ? (28 + isleap(year)) : (30 + (mon + (mon > 7)) % 2)
+	return (mon == 2) \
+		? (28 + isleap(year)) \
+		: (30 + (mon + (mon > 7)) % 2)
 }
 
-# Split the time in seconds since epoch into a table, with fields
-# named as with gmtime(3): tm["year"], tm["mon"], tm["mday"],
-# tm["hour"], tm["min"], tm["sec"]
+# Split the time in seconds since epoch into a table, with fields named
+# as with gmtime(3): tm["year"], tm["mon"], tm["mday"], tm["hour"],
+# tm["min"], tm["sec"].
 function gmtime(sec, tm)
 {
-	tm["year"] = 1970
+	tm["year"]=1970
 	while (sec >= (s = 86400 * (365 + isleap(tm["year"])))) {
 		tm["year"]++
-		sec -= s
+		sec-=s
 	}
 
-	tm["mon"] = 1
+	tm["mon"]=1
 	while (sec >= (s = 86400 * mdays(tm["mon"], tm["year"]))) {
 		tm["mon"]++
-		sec -= s
+		sec-=s
 	}
 
-	tm["mday"] = 1
+	tm["mday"]=1
 	while (sec >= (s = 86400)) {
 		tm["mday"]++
-		sec -= s
+		sec-=s
 	}
 
-	tm["hour"] = 0
+	tm["hour"]=0
 	while (sec >= 3600) {
 		tm["hour"]++
-		sec -= 3600
+		sec-=3600
 	}
 
-	tm["min"] = 0
+	tm["min"]=0
 	while (sec >= 60) {
 		tm["min"]++
-		sec -= 60
+		sec-=60
 	}
 
-	tm["sec"] = sec
+	tm["sec"]=sec
 }
 
 BEGIN { FS=" " } {
@@ -55,12 +59,12 @@ BEGIN { FS=" " } {
 	}
 
 	gmtime($1, tm)
-	date = sprintf("%04d/%02d/%02d", tm["year"], tm["mon"], tm["mday"])
-	time = sprintf("%02d:%02d:%02d", tm["hour"], tm["min"], tm["sec"])
+	date=sprintf("%04d/%02d/%02d", tm["year"], tm["mon"], tm["mday"])
+	time=sprintf("%02d:%02d", tm["hour"], tm["min"])
 
 	# Display date only when it actually changed.
 	if (lastdate != date) {
-		lastdate = date
+		lastdate=date
 		printf "%s\033[37m-- %s --\033[0m",
 			(NR != 1 ? "\n\n" : ""), date
 	}
