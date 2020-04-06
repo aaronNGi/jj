@@ -339,6 +339,20 @@ The following programs are supported:
  Examples
 --------------------------------------------------------------------------
 
+### Securing the Connection
+
+Using TLS via [s6-networking][s6 networking] utilities
+
+```shell
+s6-tlsclient irc.freenode.org 6697 jjd
+```
+
+Or using SSL via netcat
+
+```shell
+ncat -vv --ssl --ssl-verify -c 'exec 6<&0 7>&1; PROTO=lol jjd </dev/tty >/dev/tty' irc.freenode.org 6697
+```
+
 ### Automatic Reconnection
 
 ```shell
@@ -390,8 +404,14 @@ fi
  Community
 --------------------------------------------------------------------------
 
+### Contributions/Scripts
+
+* [panica][panica github] - Thin tmux wrapper around jj
+
 ### IRC
 
 Join `#jj` on irc.freenode.org
 
 [ii homepage]: https://tools.suckless.org/ii/
+[s6 networking]: https://skarnet.org/software/s6-networking/
+[panica github]:  https://github.com/guysv/panica
