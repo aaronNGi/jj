@@ -77,15 +77,15 @@ dial(const char *host, const char *port)
 }
 
 static int
-read_line(int fd, char *buf, size_t bufsize)
+read_line(FILE *fp, char *buf, size_t bufsize)
 {
-	char c;
+	int c;
 	size_t i = 0;
 
 	if (bufsize < 2) /* must have room for 1 character and \0 */
 		abort();
 
-	while (read(fd, &c, 1) == 1) {
+	while ((c = fgetc(fp)) != EOF) {
 		if (c == '\n') {
 			/* take out \n or \r\n */
 			if (i && buf[i - 1] == '\r')
@@ -101,11 +101,11 @@ read_line(int fd, char *buf, size_t bufsize)
 }
 
 static void
-input_from_socket(int fd, int pipe_fd)
+input_from_socket(FILE *fp, int pipe_fd)
 {
 	char buf[IRC_MSG_MAX];
 
-	if (read_line(fd, buf, sizeof buf))
+	if (read_line(fp, buf, sizeof buf))
 		die("remote host closed the connection");
 
 	if (dprintf(pipe_fd, "i %ju %s\n", (uintmax_t)time(NULL), buf) < 0)
@@ -114,11 +114,11 @@ input_from_socket(int fd, int pipe_fd)
 }
 
 static void
-input_from_fifo(int fd, int pipe_fd)
+input_from_fifo(FILE *fp, int pipe_fd)
 {
 	char buf[IRC_MSG_MAX];
 
-	if (read_line(fd, buf, sizeof buf))
+	if (read_line(fp, buf, sizeof buf))
 		die("failed reading fifo:");
 
 	if (dprintf(pipe_fd, "u %ju %s\n", (uintmax_t)time(NULL), buf) < 0)
@@ -190,6 +190,7 @@ int
 main(int argc, char **argv)
 {
 	int sock_in, sock_out, fifo_fd, max_fd;
+	FILE *sock_fp, *fifo_fp;
 	int child_pipe[2];
 	time_t trespond;
 	fd_set rdset;
@@ -219,7 +220,7 @@ main(int argc, char **argv)
 		sock_in = sock_out = dial(host, port);
 	} else {
 		/* UCSPI sockets */
-		sock_in = 6;
+		sock_in  = 6;
 		sock_out = 7;
 	}
 
@@ -245,6 +246,14 @@ main(int argc, char **argv)
 	trespond = time(NULL);
 
 	FD_ZERO(&rdset);
+
+	sock_fp = fdopen(sock_in, "r");
+	if (sock_fp == NULL)
+		die("could not setup buffering on input socket fd%d", sock_in);
+
+	fifo_fp = fdopen(fifo_fd, "r");
+	if (fifo_fp == NULL)
+		die("could not setup buffering on fifo fd%d", fifo_fd);
 
 	max_fd = fifo_fd;
 	if (max_fd < sock_out)
@@ -278,11 +287,11 @@ main(int argc, char **argv)
 
 		if (FD_ISSET(sock_in, &rdset)) {
 			trespond = time(NULL);
-			input_from_socket(sock_in, child_pipe[1]);
+			input_from_socket(sock_fp, child_pipe[1]);
 		}
 
 		if (FD_ISSET(fifo_fd, &rdset)) {
-			input_from_fifo(fifo_fd, child_pipe[1]);
+			input_from_fifo(fifo_fp, child_pipe[1]);
 		}
 	}
 }
