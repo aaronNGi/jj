@@ -1254,6 +1254,9 @@ function on_nosuchnick(   nick, nick_lc, text)
 
 	print_out(nick ": " text)
 
+	if (is_chan(nick_lc))
+		return
+
 	if (nick_lc in channels) {
 		print_out(nick ": " text, nick_lc)
 		print_out("Closed channel: " nick)
