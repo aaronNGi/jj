@@ -81,7 +81,7 @@ open new windows in `tmux(1)`, whenever a channel is joined. See
 
 Nothing but a C compiler and `awk(1)`.
 
-*Supported awk implementations are gawk, nawk, mawk & busybox awk. The
+*Supported AWK implementations are gawk, nawk, mawk & busybox awk. The
 original awk described in "The AWK Programming Language" is not working.*
 
 
