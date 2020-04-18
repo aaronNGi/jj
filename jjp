@@ -91,6 +91,7 @@ BEGIN {
 } {
 	if (NF < 2) {
 		printf "\n%s", $0
+		fflush()
 		next
 	}
 
@@ -120,6 +121,7 @@ BEGIN {
 	# When JJ_SERVERLOG is set, print messages in the default color.
 	if (ENVIRON["JJ_SERVERLOG"] != "") {
 		printf "\n\033[%sm%s\033[0m %s", dcolor, time, msg
+		fflush()
 		next
 	}
 
@@ -127,6 +129,7 @@ BEGIN {
 	if (nick == "-") {
 		printf "\n\033[%sm%s \033[%sm%s\033[0m",
 			dcolor, time, "38;5;8", msg
+		fflush()
 		next
 	}
 
@@ -153,4 +156,5 @@ BEGIN {
 
 	printf "\n\033[%sm%s\033[0m \033[%sm%10s\033[0m: %s",
 		dcolor, time, ncolor, nick, msg
+	fflush()
 } END { print "" }
