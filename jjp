@@ -52,16 +52,6 @@ function gmtime(sec, tm)
 	tm["sec"]=sec
 }
 
-# Handle tail's "==> filename <==" headers
-$1 == "==>" {
-	sub("/channels/", " ")
-	sub(".log <==", "")
-	sub(".*/", "")
-	sub(" ", "/")
-	printf "\n%s", $0
-	next
-}
-
 function tz(   cmd, date, h, m)
 {
 	cmd="date +%z 2>/dev/null"
@@ -73,9 +63,31 @@ function tz(   cmd, date, h, m)
 	tzoffset=substr(date, 1, 1) (h * 3600 + m * 60)
 }
 
+function print_header(text)
+{
+	printf "%s\033[37m%s\033[0m",
+		(NR != 1 ? "\n\n" : ""), text
+}
+
 BEGIN {
 	FS=" "
 	tz()
+} !NF {
+	next
+} $1 == "==>" {  # Handle tail's "==> filename <==" headers.
+	gsub(/(^==> |(\.log)? <==$)/, "")
+	gsub("/+", "/")
+
+	if ((n=split($0, arr, "/")) >= 3) {
+		header=arr[n] " (" arr[n-2] ")"
+	} else {
+		header=$0
+	}
+	delete arr
+	delete header
+
+	print_header("== " header " ==")
+	next
 } {
 	if (NF < 2) {
 		printf "\n%s", $0
@@ -89,8 +101,7 @@ BEGIN {
 	# Display date only when it actually changed.
 	if (lastdate != date) {
 		lastdate=date
-		printf "%s\033[37m-- %s --\033[0m",
-			(NR != 1 ? "\n\n" : ""), date
+		print_header("-- " date " --")
 	}
 
 	nickend=index($2, ">")
