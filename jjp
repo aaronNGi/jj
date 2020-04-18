@@ -52,6 +52,16 @@ function gmtime(sec, tm)
 	tm["sec"]=sec
 }
 
+# Handle tail's "==> filename <==" headers
+$1 == "==>" {
+	sub("/channels/", " ")
+	sub(".log <==", "")
+	sub(".*/", "")
+	sub(" ", "/")
+	printf "\n%s", $0
+	next
+}
+
 function tz(   cmd, date, h, m)
 {
 	cmd="date +%z 2>/dev/null"
