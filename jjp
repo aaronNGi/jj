@@ -84,7 +84,6 @@ BEGIN {
 		header=$0
 	}
 	delete arr
-	delete header
 
 	print_header("== " header " ==")
 	next
