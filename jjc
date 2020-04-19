@@ -1157,7 +1157,7 @@ function on_isupport(   arr, i, j, pos, var, val)
 			if (!(val in casemap))
 				return
 
-			supprt["casemapping"]=val
+			support["casemapping"]=val
 			split(casemap[val], arr, " ")
 			casemap["uppercase_range"]=arr[1]
 			casemap["lowercase_range"]=arr[2]
