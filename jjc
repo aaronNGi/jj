@@ -323,12 +323,8 @@ function irc_tolower(str,   char, i, lower)
 	if (str !~ "[" casemap["uppercase_range"] "]")
 		return str
 
-	while (char=substr(str, ++i, 1)) {
-		if (char in casemap)
-			lower=lower casemap[char]
-		else
-			lower=lower char
-	}
+	while (char=substr(str, ++i, 1))
+		lower=lower (char in casemap ? casemap[char] : char)
 
 	return lower
 }
@@ -360,8 +356,7 @@ function nick_in_chan(nick, chan)
 	# array are surrounded by spaces, we will always be able to match
 	# whole nicks, instead of getting a partial match when searching
 	# for "john" while that channel also has a user called "johndoe".
-	return index(channels[irc_tolower(chan)],
-		" " irc_tolower(nick) " ")
+	return index(channels[irc_tolower(chan)], " " irc_tolower(nick) " ")
 }
 
 function _chan_add(str, chan)
@@ -670,7 +665,6 @@ function cmd_generic(realcmd, arg_min, arg_max, trailing_arg,
 				pos++
 				break
 			}
-
 		}
 		$0=substr($0, 1, pos-1) colon substr($0, pos)
 	}
