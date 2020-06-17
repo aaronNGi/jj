@@ -28,9 +28,9 @@ BEGIN {
 	casemap["uppercase_range"] = "A-Z"
 	casemap["lowercase_range"] = "a-z"
 	# A-Z -> a-z
-	for (local["i"]=65; local["i"]<91; local["i"]++)
-		casemap[sprintf("%c", local["i"])]=sprintf("%c",
-			local["i"] + 32)
+	for (i=65; i<91; i++)
+		casemap[sprintf("%c", i)]=sprintf("%c", i + 32)
+	i=""
 
 	# General settings and connection related state.
 	irc["connected"]     = 0
@@ -69,19 +69,12 @@ BEGIN {
 	support["prefix"]      = "@+"
 	support["statusmsg"]   = ""
 
-	# Because all variables used in BEGIN will have global scope, an
-	# array variable is used.  That way it can easily be emptied
-	# later.
-
 	# Try to create the "channels" directory while also creating all
 	# parent directories as needed.
-	local["path"]="$IRC_DIR/$IRC_HOST/channels"
-	local["cmd"]="exec mkdir -p -- \"" local["path"] "\" >&2"
-	if (system(system(local["cmd"])) != 0)
+	cmd="exec mkdir -p -- \"$IRC_DIR/$IRC_HOST/channels\" >&2"
+	if (system(system(cmd)) != 0)
 		exit(1)
-
-	# Empty the array holding local variables.
-	split("", local)
+	cmd=""
 
 	# Initiate the irc login sequence which sends the PASS, NICK and
 	# USER messages to the server.
