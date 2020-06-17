@@ -77,15 +77,8 @@ BEGIN {
 	# parent directories as needed.
 	local["path"]="$IRC_DIR/$IRC_HOST/channels"
 	local["cmd"]="exec mkdir -p -- \"" local["path"] "\" >&2"
-	local["retval"]=system(local["cmd"])
-
-	# If we fail to create the directory structure, there is no point
-	# in continuing.
-	if (local["retval"] != 0) {
-		eprint(1, "failed calling mkdir")
-	} else if (local["retval"] != 0) {
-		exit local["retval"]
-	}
+	if (system(system(local["cmd"])) != 0)
+		exit(1)
 
 	# Empty the array holding local variables.
 	split("", local)
