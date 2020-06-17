@@ -513,13 +513,10 @@ function ext_command(name, chan, instigator, text,
 	name=command["prefix"] command[name]
 
 	# Can the command be found in the users $PATH?
-	retval=system("exec command -v " name " 1>/dev/null")
-
-	if (retval != 0)
+	if (system("exec command -v " name " 1>/dev/null") != 0) {
 		print_out("Failed calling external command '" name "'")
-	# Command wasn't found.
-	else if (retval != 0)
 		return 0
+	}
 
 	# Construct the environment for the external command.
 	ENVIRON["IRC_ME"]=irc["nick"]
