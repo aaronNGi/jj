@@ -69,14 +69,14 @@ BEGIN {
 	support["prefix"]      = "@+"
 	support["statusmsg"]   = ""
 
-	# Shell escape the logdir path.  Because all variables used in
-	# BEGIN will have global scope, an array variable is used.  That
-	# way it can easily be emptied later.
-	local["path"]=shell_escape(irc["logdir"] "/channels")
+	# Because all variables used in BEGIN will have global scope, an
+	# array variable is used.  That way it can easily be emptied
+	# later.
 
 	# Try to create the "channels" directory while also creating all
 	# parent directories as needed.
-	local["retval"]=system("mkdir -p -- " local["path"] " >&2")
+	local["path"]="$IRC_DIR/$IRC_HOST/channels"
+	local["retval"]=system("mkdir -p -- \"" local["path"] "\" >&2")
 
 	# If we fail to create the directory structure, there is no point
 	# in continuing.
@@ -515,13 +515,6 @@ function get_nickuserhost()
 		return source[1]
 }
 
-function shell_escape(str)
-{
-	# foo'bar -> 'foo'\''bar'.
-	gsub(/'/, "'\\''", str)
-	return "'" str "'"
-}
-
 function ext_command(name, chan, instigator, text,
 	casemapping, env, cmd)
 {
@@ -542,25 +535,19 @@ function ext_command(name, chan, instigator, text,
 		return 0
 
 	# Construct the environment for the external command.
-	env=sprintf("IRC_ME=%s IRC_NETWORK=%s IRC_TEXT=%s",
-		shell_escape(irc["nick"]),
-		shell_escape(irc["network"]),
-		shell_escape(text))
-	env=env sprintf(" IRC_WHERE=%s IRC_WHO=%s",
-		shell_escape(chan),
-		shell_escape(instigator))
-
-	casemapping=casemap["uppercase_range"] " " \
+	ENVIRON["IRC_ME"]=irc["nick"]
+	ENVIRON["IRC_NETWORK"]=irc["network"]
+	ENVIRON["IRC_TEXT"]=irc["text"]
+	ENVIRON["IRC_WHERE"]=chan
+	ENVIRON["IRC_WHO"]=instigator
+	ENVIRON["IRC_CASEMAPPING"] = \
+		casemap["uppercase_range"] " " \
 		casemap["lowercase_range"]
-
-	env=env sprintf(" IRC_CASEMAPPING=%s", shell_escape(casemapping))
-
 	if (irc["away"])
-		env=env " IRC_AWAY=1"
+		ENVIRON["IRC_AWAY"] = "1"
 
 	# Exec the command using the additional environment variables.
-	cmd=sprintf("exec 1>/dev/null env %s %s &", env, name)
-	system(cmd)
+	system("exec 1>/dev/null " name " &")
 }
 
 ## User commands #########################################################
