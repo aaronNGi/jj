@@ -76,11 +76,12 @@ BEGIN {
 	# Try to create the "channels" directory while also creating all
 	# parent directories as needed.
 	local["path"]="$IRC_DIR/$IRC_HOST/channels"
-	local["retval"]=system("mkdir -p -- \"" local["path"] "\" >&2")
+	local["cmd"]="exec mkdir -p -- \"" local["path"] "\" >&2"
+	local["retval"]=system(local["cmd"])
 
 	# If we fail to create the directory structure, there is no point
 	# in continuing.
-	if (local["retval"] == -1) {
+	if (local["retval"] != 0) {
 		eprint(1, "failed calling mkdir")
 	} else if (local["retval"] != 0) {
 		exit local["retval"]
@@ -526,9 +527,9 @@ function ext_command(name, chan, instigator, text,
 	name=command["prefix"] command[name]
 
 	# Can the command be found in the users $PATH?
-	retval=system("command -v " name " 1>/dev/null")
+	retval=system("exec command -v " name " 1>/dev/null")
 
-	if (retval == -1)
+	if (retval != 0)
 		print_out("Failed calling external command '" name "'")
 	# Command wasn't found.
 	else if (retval != 0)
