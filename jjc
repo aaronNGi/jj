@@ -516,7 +516,7 @@ function ext_command(name, chan, instigator, text,
 	ENVIRON["IRC_TEXT"]=irc["text"]
 	ENVIRON["IRC_WHERE"]=chan
 	ENVIRON["IRC_WHO"]=instigator
-	ENVIRON["IRC_CASEMAPPING"]=
+	ENVIRON["IRC_CASEMAPPING"]=\
 		casemap["uppercase_range"] " " \
 		casemap["lowercase_range"]
 	if (irc["away"])
