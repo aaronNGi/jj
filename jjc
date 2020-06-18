@@ -523,7 +523,8 @@ function ext_command(name, chan, instigator, text,
 		ENVIRON["IRC_AWAY"]="1"
 
 	# Exec the command using the additional environment variables.
-	system("exec 1>/dev/null " name " &")
+	system("command -v " name " >/dev/null 2>&1" \
+		" && exec 1>/dev/null " name " &")
 }
 
 ## User commands #########################################################
