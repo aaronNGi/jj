@@ -356,7 +356,8 @@ function nick_in_chan(nick, chan)
 	# array are surrounded by spaces, we will always be able to match
 	# whole nicks, instead of getting a partial match when searching
 	# for "john" while that channel also has a user called "johndoe".
-	return index(channels[irc_tolower(chan)], " " irc_tolower(nick) " ")
+	return index(channels[irc_tolower(chan)],
+		" " irc_tolower(nick) " ")
 }
 
 function _chan_add(str, chan)
@@ -513,11 +514,11 @@ function ext_command(name, chan, instigator, text,
 	ENVIRON["IRC_TEXT"]=irc["text"]
 	ENVIRON["IRC_WHERE"]=chan
 	ENVIRON["IRC_WHO"]=instigator
-	ENVIRON["IRC_CASEMAPPING"] = \
+	ENVIRON["IRC_CASEMAPPING"]=
 		casemap["uppercase_range"] " " \
 		casemap["lowercase_range"]
 	if (irc["away"])
-		ENVIRON["IRC_AWAY"] = "1"
+		ENVIRON["IRC_AWAY"]="1"
 
 	# Exec the command using the additional environment variables.
 	system("exec 1>/dev/null " name " &")
