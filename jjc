@@ -323,8 +323,10 @@ function irc_tolower(str,   char, i, lower)
 	if (str !~ "[" casemap["uppercase_range"] "]")
 		return str
 
+	# Without concatenating the empty string, busybox awk thinks we
+	# want to call the function lower() here.
 	while (char=substr(str, ++i, 1))
-		lower=lower (char in casemap ? casemap[char] : char)
+		lower=lower "" (char in casemap) ? casemap[char] : char
 
 	return lower
 }
