@@ -72,7 +72,7 @@ BEGIN {
 	# Try to create the "channels" directory while also creating all
 	# parent directories as needed.
 	cmd="exec mkdir -p -- \"$IRC_DIR/$IRC_HOST/channels\" >&2"
-	if (system(system(cmd)) != 0)
+	if (system(cmd) != 0)
 		exit(1)
 	cmd=""
 
