@@ -500,31 +500,39 @@ function get_nickuserhost()
 		return source[1]
 }
 
+function shell_escape(str)
+{
+	# foo'bar -> 'foo'\''bar'.
+	gsub(/'/, "'\\''", str)
+	return "'" str "'"
+}
+
 function ext_command(name, chan, instigator, text,
 	casemapping, env, cmd)
 {
 	if (!(name in command))
 		return
 
+	casemapping = casemap["uppercase_range"] " " \
+		casemap["lowercase_range"]
+
+	# Construct the environment for the external command.
+	env = sprintf("%s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s",
+		"IRC_ME",          shell_escape(irc["nick"]),
+		"IRC_NETWORK",     shell_escape(irc["network"]),
+		"IRC_TEXT",        shell_escape(text),
+		"IRC_WHERE",       shell_escape(chan),
+		"IRC_WHO",         shell_escape(instigator),
+		"IRC_CASEMAPPING", shell_escape(casemapping),
+		"IRC_AWAY",        irc["away"] ? "1" : "")
+
 	# Assemble the final command name by adding the prefix and looking
 	# up the command.
 	name = command["prefix"] command[name]
 
-	# Construct the environment for the external command.
-	ENVIRON["IRC_ME"] = irc["nick"]
-	ENVIRON["IRC_NETWORK"] = irc["network"]
-	ENVIRON["IRC_TEXT"] = irc["text"]
-	ENVIRON["IRC_WHERE"] = chan
-	ENVIRON["IRC_WHO"] = instigator
-	ENVIRON["IRC_CASEMAPPING"] = \
-		casemap["uppercase_range"] " " \
-		casemap["lowercase_range"]
-	if (irc["away"])
-		ENVIRON["IRC_AWAY"] = "1"
-
 	# Exec the command using the additional environment variables.
-	system("command -v " name " >/dev/null 2>&1" \
-		" && exec 1>/dev/null " name " &")
+	cmd = "command -v %s >/dev/null 2>&1 && %s exec 1>/dev/null %s &"
+	system(sprintf(cmd, name, env, name))
 }
 
 ## User commands #########################################################
