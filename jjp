@@ -1,5 +1,22 @@
 #!/usr/bin/awk -f
 
+BEGIN {
+	color["red"]            = 31
+	color["white"]          = 37
+	color["default"]        = 0
+	color["dark_gray"]      = "38;5;8"
+
+	color["header"]         = color["dark_gray"]
+	color["time"]           = color["dark_gray"]
+	color["time_highlight"] = color["red"]
+	color["others_msg"]     = color["default"]
+	color["self_nick"]      = color["white"]
+	color["self_msg"]       = color["default"]
+	color["status_nick"]    = color["dark_gray"]
+	color["status_msg"]     = color["dark_gray"]
+	color["status_msg_srv"] = color["default"]
+}
+
 function isleap(year)
 {
 	return (year % 4 == 0) \
@@ -19,67 +36,69 @@ function mdays(mon, year)
 # tm["min"], tm["sec"].
 function gmtime(sec, tm)
 {
-	tm["year"]=1970
+	tm["year"] = 1970
 	while (sec >= (s = 86400 * (365 + isleap(tm["year"])))) {
 		tm["year"]++
-		sec-=s
+		sec -= s
 	}
 
-	tm["mon"]=1
+	tm["mon"] = 1
 	while (sec >= (s = 86400 * mdays(tm["mon"], tm["year"]))) {
 		tm["mon"]++
-		sec-=s
+		sec -= s
 	}
 
-	tm["mday"]=1
+	tm["mday"] = 1
 	while (sec >= (s = 86400)) {
 		tm["mday"]++
-		sec-=s
+		sec -= s
 	}
 
-	tm["hour"]=0
+	tm["hour"] = 0
 	while (sec >= 3600) {
 		tm["hour"]++
-		sec-=3600
+		sec -= 3600
 	}
 
-	tm["min"]=0
+	tm["min"] = 0
 	while (sec >= 60) {
 		tm["min"]++
-		sec-=60
+		sec -= 60
 	}
 
-	tm["sec"]=sec
+	tm["sec"] = sec
 }
 
 function tz(   cmd, date, h, m)
 {
-	cmd="date +%z 2>/dev/null"
+	cmd = "date +%z 2>/dev/null"
 	cmd | getline date
 	close(cmd)
 
-	h=substr(date, 2, 2)
-	m=substr(date, 4, 2)
-	tzoffset=substr(date, 1, 1) (h * 3600 + m * 60)
+	h = substr(date, 2, 2)
+	m = substr(date, 4, 2)
+	tzoffset = substr(date, 1, 1) (h * 3600 + m * 60)
 }
 
 function print_header(text)
 {
-	printf "%s\033[37m%s\033[0m",
-		(NR != 1 ? "\n\n" : ""), text
+	printf "%s\033[%sm%s\033[0m",
+		(NR != 1 ? "\n\n" : ""), color["header"], text
 }
 
 BEGIN {
-	FS=" "
+	FS = " "
 	tz()
+
+	for (i = 32; i < 127; i++)
+		char_to_num[sprintf("%c", i)] = i
 } !NF {
 	next
 } $1 == "==>" {  # Handle tail's "==> filename <==" headers.
-	gsub(/(^==> |(\.log)? <==$)/, "")
-	gsub("/+", "/")
+	gsub("(^==> .*/| <==$)", "")
 
-	if ((n=split($0, arr, "/")) >= 3)
-		$0=arr[n] " (" arr[n-2] ")"
+	if ((n = split($0, arr, "/")) >= 3)
+		$0 = arr[n] " (" arr[n-2] ")"
 
 	delete arr
 	print_header("== " $0 " ==")
@@ -87,70 +106,82 @@ BEGIN {
 } {
 	if (NF < 2) {
 		printf "\n%s", $0
+		lastnick = ""
 		fflush()
 		next
 	}
 
 	gmtime($1 + tzoffset, tm)
-	date=sprintf("%04d/%02d/%02d", tm["year"], tm["mon"], tm["mday"])
-	time=sprintf("%02d:%02d", tm["hour"], tm["min"])
+	date = sprintf("%04d/%02d/%02d", tm["year"], tm["mon"], tm["mday"])
+	time = sprintf("%02d:%02d", tm["hour"], tm["min"])
 
 	# Display date only when it actually changed.
 	if (lastdate != date) {
-		lastdate=date
+		lastnick = ""
+		lastdate = date
 		print_header("-- " date " --")
 	}
 
-	nickend=index($2, ">")
-	type=substr($2, nickend+1)
-	msg=substr($0, index($0, ">") + 2 + length(type))
-	nick=substr($2, 2, nickend-2)
+	nickend = index($2, ">")
+	type = substr($2, nickend+1)
+	msg = substr($0, index($0, ">") + 2 + length(type))
+	nick = substr($2, 2, nickend-2)
 
 	# Set the date color for highlights.
 	if (index(type, "!")) {
 		printf "\a"
-		dcolor="33"
+		time_color = color["time_highlight"]
 	} else {
-		dcolor="38;5;8"
+		time_color = color["time"]
 	}
 
-	# When JJ_SERVERLOG is set, print messages in the default color.
+	# When JJ_SERVERLOG is set, print messages without nick and in a
+	# different color.
 	if (ENVIRON["JJ_SERVERLOG"] != "") {
-		printf "\n\033[%sm%s\033[0m %s", dcolor, time, msg
+		printf "\n\033[%sm%s\033[%sm %s",
+			time_color, time, color["status_msg_srv"], msg
 		fflush()
 		next
 	}
 
 	# Status message.
 	if (nick == "-") {
-		printf "\n\033[%sm%s \033[%sm%s\033[0m",
-			dcolor, time, "38;5;8", msg
-		fflush()
-		next
+		nick_color = color["status_nick"]
+		msg_color = color["status_msg"]
+
+	# My message.
+	} else if (index(type, "*")) {
+		nick_color = color["self_nick"]
+		msg_color = color["self_msg"]
+
+	# Other message.
+	} else {
+		# Calculate nick color if necessary.
+		if ((nick_color = nick_colors[nick]) == "") {
+			i = 1
+			sum = 0
+			while (char = substr(nick, i++, 1))
+				sum = sum + char_to_num[char]
+
+			nick_color = nick_colors[nick] = "38;5;" sum % 256
+		}
+		msg_color = color["others_msg"]
 	}
 
-	isme=index(type, "*")
-
-	# Alternating nick colors for better readability.
-	if (!isme && lastnick != nick) {
-		alt=!alt
-		lastnick=nick
-	}
-
-	if (isme)
-		ncolor="37"
-	else if (alt)
-		ncolor="31"
-	else
-		ncolor="0"
+	# Message grouping.
+	if (lastnick != nick) {
+		print ""
+		lastnick = nick
+	} else if (nick != "-")
+		nick = ""
 
 	# Handle ACTION.
 	if (index(type, "a")) {
-		msg=nick " " msg
-		nick="*"
+		msg = (length(nick) ? nick : lastnick) " " msg
+		nick = "*"
 	}
 
-	printf "\n\033[%sm%s\033[0m \033[%sm%10s\033[0m: %s",
-		dcolor, time, ncolor, nick, msg
+	printf "\n\033[%sm%s\033[0m \033[%sm%10s\033[0m  \033[%sm%s\033[0m",
+		time_color, time, nick_color, nick, msg_color, msg
 	fflush()
 } END { print "" }

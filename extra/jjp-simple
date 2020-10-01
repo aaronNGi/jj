@@ -1,0 +1,156 @@
+#!/usr/bin/awk -f
+
+function isleap(year)
+{
+	return (year % 4 == 0) \
+		&& (year % 100 != 0) \
+		|| (year % 400 == 0)
+}
+
+function mdays(mon, year)
+{
+	return (mon == 2) \
+		? (28 + isleap(year)) \
+		: (30 + (mon + (mon > 7)) % 2)
+}
+
+# Split the time in seconds since epoch into a table, with fields named
+# as with gmtime(3): tm["year"], tm["mon"], tm["mday"], tm["hour"],
+# tm["min"], tm["sec"].
+function gmtime(sec, tm)
+{
+	tm["year"]=1970
+	while (sec >= (s = 86400 * (365 + isleap(tm["year"])))) {
+		tm["year"]++
+		sec-=s
+	}
+
+	tm["mon"]=1
+	while (sec >= (s = 86400 * mdays(tm["mon"], tm["year"]))) {
+		tm["mon"]++
+		sec-=s
+	}
+
+	tm["mday"]=1
+	while (sec >= (s = 86400)) {
+		tm["mday"]++
+		sec-=s
+	}
+
+	tm["hour"]=0
+	while (sec >= 3600) {
+		tm["hour"]++
+		sec-=3600
+	}
+
+	tm["min"]=0
+	while (sec >= 60) {
+		tm["min"]++
+		sec-=60
+	}
+
+	tm["sec"]=sec
+}
+
+function tz(   cmd, date, h, m)
+{
+	cmd="date +%z 2>/dev/null"
+	cmd | getline date
+	close(cmd)
+
+	h=substr(date, 2, 2)
+	m=substr(date, 4, 2)
+	tzoffset=substr(date, 1, 1) (h * 3600 + m * 60)
+}
+
+function print_header(text)
+{
+	printf "%s\033[37m%s\033[0m",
+		(NR != 1 ? "\n\n" : ""), text
+}
+
+BEGIN {
+	FS=" "
+	tz()
+} !NF {
+	next
+} $1 == "==>" {  # Handle tail's "==> filename <==" headers.
+	gsub(/(^==> |(\.log)? <==$)/, "")
+	gsub("/+", "/")
+
+	if ((n=split($0, arr, "/")) >= 3)
+		$0=arr[n] " (" arr[n-2] ")"
+
+	delete arr
+	print_header("== " $0 " ==")
+	next
+} {
+	if (NF < 2) {
+		printf "\n%s", $0
+		fflush()
+		next
+	}
+
+	gmtime($1 + tzoffset, tm)
+	date=sprintf("%04d/%02d/%02d", tm["year"], tm["mon"], tm["mday"])
+	time=sprintf("%02d:%02d", tm["hour"], tm["min"])
+
+	# Display date only when it actually changed.
+	if (lastdate != date) {
+		lastdate=date
+		print_header("-- " date " --")
+	}
+
+	nickend=index($2, ">")
+	type=substr($2, nickend+1)
+	msg=substr($0, index($0, ">") + 2 + length(type))
+	nick=substr($2, 2, nickend-2)
+
+	# Set the date color for highlights.
+	if (index(type, "!")) {
+		printf "\a"
+		dcolor="33"
+	} else {
+		dcolor="38;5;8"
+	}
+
+	# When JJ_SERVERLOG is set, print messages in the default color.
+	if (ENVIRON["JJ_SERVERLOG"] != "") {
+		printf "\n\033[%sm%s\033[0m %s", dcolor, time, msg
+		fflush()
+		next
+	}
+
+	# Status message.
+	if (nick == "-") {
+		printf "\n\033[%sm%s \033[%sm%s\033[0m",
+			dcolor, time, "38;5;8", msg
+		fflush()
+		next
+	}
+
+	isme=index(type, "*")
+
+	# Alternating nick colors for better readability.
+	if (!isme && lastnick != nick) {
+		alt=!alt
+		lastnick=nick
+	}
+
+	if (isme)
+		ncolor="37"
+	else if (alt)
+		ncolor="31"
+	else
+		ncolor="0"
+
+	# Handle ACTION.
+	if (index(type, "a")) {
+		msg=nick " " msg
+		nick="*"
+	}
+
+	printf "\n\033[%sm%s\033[0m \033[%sm%10s\033[0m: %s",
+		dcolor, time, ncolor, nick, msg
+	fflush()
+} END { print "" }
