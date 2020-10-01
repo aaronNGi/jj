@@ -39,7 +39,7 @@ cat <<-EOF
 EOF
 } \
 | awk -f "$jjp" \
-| tail -n"-$rows" \
+| tail -n"-$((rows-3))" \
 | awk -vspacing="$spacing" '
 	function repeat(char, amount,   str) {
 		str = sprintf("%" amount "s", "")
