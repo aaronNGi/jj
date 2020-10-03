@@ -95,12 +95,8 @@ BEGIN {
 } !NF {
 	next
 } $1 == "==>" {  # Handle tail's "==> filename <==" headers.
-	gsub("(^==> .*/| <==$)", "")
+	gsub("(^==> (.*/)?| <==$)", "")
 
-	if ((n = split($0, arr, "/")) >= 3)
-		$0 = arr[n] " (" arr[n-2] ")"
-
-	delete arr
 	print_header("== " $0 " ==")
 	next
 } {
