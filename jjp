@@ -6,7 +6,7 @@ BEGIN {
 	color["default"]        = 0
 	color["dark_gray"]      = "38;5;8"
 
-	color["header"]         = color["dark_gray"]
+	color["header"]         = color["default"]
 	color["time"]           = color["dark_gray"]
 	color["time_highlight"] = color["red"]
 	color["others_msg"]     = color["default"]
@@ -159,7 +159,7 @@ BEGIN {
 			while (char = substr(nick, i++, 1))
 				sum = sum + char_to_num[char]
 
-			nick_color = nick_colors[nick] = "38;5;" sum % 256
+			nick_color = nick_colors[nick] = "38;5;" sum % 232
 		}
 		msg_color = color["others_msg"]
 	}
