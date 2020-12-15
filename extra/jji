@@ -6,6 +6,9 @@
 #
 # Commands can be executed by prefixing them with a '/'.  Typing two
 # slashes allows sending of messages with a slash in the beginning.
+# The channel can be changed using `/channel <channel>`.  Omitting the
+# channel argument, switches to the previously set channel.  The shorter
+# `/chan`or `/c` can also be used.
 
 : "${1:?Missing channel argument}"
 
@@ -13,12 +16,34 @@ fifo="$IRC_DIR/$IRC_HOST/in"
 [ -p "$fifo" ] && [ -w "$fifo" ] ||
 	exit 1
 
-prompt() { [ -t 0 ] && printf '\033[37m%s\033[0m> ' "$1" >&2 || :; }
+chan=$1
+last_chan=$1
 
-while prompt "$1" && IFS= read -r line || [ -n "$line" ]; do
+prompt() { [ -t 0 ] && printf '\033[37m%s\033[0m> ' "$chan" >&2 || :; }
+
+while prompt "$chan" && IFS= read -r line || [ -n "$line" ]; do
 	case $line in
+		/channel\ ?*|/chan\ ?*|/c\ ?*)
+			[ "${line##* }" != "$chan" ] && {
+				last_chan=$chan
+				chan=${line##* }
+			}
+			continue
+		;;
+
+		/channel|/chan|/c|/channel\ *|/chan\ *|/c\ *)
+			tmp=$chan
+			chan=$last_chan
+			last_chan=$tmp
+			continue
+		;;
+
+		"")
+			continue
+		;;
+
 		/[!/]*) line=${line#?} ;;
-		*) line="msg $1 $line" ;;
+		*) line="msg $chan $line" ;;
 	esac
 	printf %s\\n "$line"
 done >"$fifo"
