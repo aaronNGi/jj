@@ -95,9 +95,12 @@ BEGIN {
 } !NF {
 	next
 } $1 == "==>" {  # Handle tail's "==> filename <==" headers.
-	gsub("(^==> (.*/)?| <==$)", "")
+	# Prevent message groupings from spanning over headers.
+	lastnick = ""
 
+	gsub("(^==> (.*/)?| <==$)", "")
 	print_header("== " $0 " ==")
+
 	next
 } {
 	if (NF < 2) {
