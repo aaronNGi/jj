@@ -1,0 +1,71 @@
+#!/bin/sh
+
+prog_name=${0##*/}
+help_text="Usage: $prog_name [-a] [-h] [-y <n>] [-m <n>]
+                  [-d <n>] [-H <n>] [-M <n>] [<file>]...
+
+Catch up on jj IRC logs starting from a relative time back
+
+	-a      Show all messages instead of filtering status messages
+        -y <n>  Start n years back
+        -m <n>  Start n months back
+        -d <n>  Start n days back
+        -H <n>  Start n hours back
+        -M <n>  Start n minutes back
+        -h      Display this help text and exit
+
+  The final starting point in the logs, is the sum of all options.
+  E.g. $prog_name -d 1 -d 1 -H 8 \#chan.log # 2 days and 8 hours"
+
+main() {
+	unset duration all
+	parse_options "$@"
+	[ "$help_flag" = 1 ] && usage
+	shift "$((OPTIND-1))"
+
+	# Default to 1 hours of backlog.
+	: ${duration:=3600}
+	start=$(($(date +%s) - duration))
+
+	exec awk -v"start=$start" -v"all=$all" '
+		!do_print && $1 >= start {
+			do_print = 1
+		}
+		do_print && (all || !/^[0-9]+ <->/)
+	' "$@"
+}
+
+usage() {
+	[ $# -ne 0 ] && {
+		exec >&2
+		printf '%s: %s\n\n' "$prog_name" "$*"
+	}
+	printf '%s\n' "$help_text"
+	exit ${1:+1}
+}
+
+parse_options() {
+	while getopts ":ahy:m:d:H:M:" _opt; do
+		case $_opt in
+			:) usage "option '$OPTARG' requires a parameter" ;;
+			\?) usage "unrecognized option '$OPTARG'" ;;
+			h) help_flag=1 ;;
+			a) all=1 ;;
+			*)
+				case $OPTARG in *[!0-9]*|"")
+					usage "Invalid number '$OPTARG'" ;;
+				esac
+			;;
+		esac
+
+		case $_opt in
+			y) duration=$((OPTARG * 31536000 + duration)) ;;
+			m) duration=$((OPTARG * 2592000 + duration)) ;;
+			d) duration=$((OPTARG * 86400 + duration)) ;;
+			H) duration=$((OPTARG * 3600 + duration)) ;;
+			M) duration=$((OPTARG * 60 + duration)) ;;
+		esac
+	done
+}
+
+main "$@"
