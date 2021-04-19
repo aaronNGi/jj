@@ -12,7 +12,7 @@
 
 : "${1:?Missing channel argument}"
 
-fifo="$IRC_DIR/$IRC_HOST/in"
+fifo=${IRC_DIR:-$HOME/irc}/${IRC_HOST:-irc.freenode.org}/in
 [ -p "$fifo" ] && [ -w "$fifo" ] ||
 	exit 1
 
