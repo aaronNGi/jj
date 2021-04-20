@@ -2,13 +2,14 @@
 #
 # Send stdin to a channel.
 #
-# Usage: jji <channel>
+# Usage: jji <channel> [<channel>]...
 #
 # Commands can be executed by prefixing them with a '/'.  Typing two
 # slashes allows sending of messages with a slash in the beginning.
 # The channel can be changed using `/channel <channel>`.  Omitting the
 # channel argument, switches to the previously set channel.  The shorter
-# `/chan`or `/c` can also be used.
+# `/chan`or `/c` can also be used.  `/<number>` selects channels from the
+# argument list.
 
 arg0=${0##*/}
 fifo=${IRC_DIR:-$HOME/irc}/${IRC_HOST:-irc.freenode.org}/in
@@ -24,6 +25,14 @@ if ! [ -p "$fifo" ] || ! [ -w "$fifo" ]; then
 	exit 1
 fi
 
+chan_by_number() {
+	[ "$1" -ge $# ] &&
+		return
+	shift "$1"
+	last_chan=$chan
+	chan=$1
+}
+
 chan=$1
 last_chan=${2:-$chan}
 
@@ -31,6 +40,14 @@ prompt() { [ -t 0 ] && printf '\033[37m%s\033[0m> ' "$chan" >&2 || :; }
 
 while prompt "$chan" && IFS= read -r line || [ -n "$line" ]; do
 	case $line in
+		/[0-9]|/[0-9][0-9]|/[0-9]\ *|/[0-9][0-9]\ *)
+			num=${line#?}
+			num=${num%% *}
+			chan_by_number "$num" "$@"
+			continue
+
+		;;
+
 		/channel\ *[!\ ]*|/chan\ *[!\ ]*|/c\ *[!\ ]*)
 			# Strip trailing whitespace.
 			line=${line%%${line##*[! ]}}
