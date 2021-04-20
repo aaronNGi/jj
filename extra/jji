@@ -31,7 +31,10 @@ prompt() { [ -t 0 ] && printf '\033[37m%s\033[0m> ' "$chan" >&2 || :; }
 
 while prompt "$chan" && IFS= read -r line || [ -n "$line" ]; do
 	case $line in
-		/channel\ ?*|/chan\ ?*|/c\ ?*)
+		/channel\ *[!\ ]*|/chan\ *[!\ ]*|/c\ *[!\ ]*)
+			# Strip trailing whitespace.
+			line=${line%%${line##*[! ]}}
+
 			[ "${line##* }" != "$chan" ] && {
 				last_chan=$chan
 				chan=${line##* }
