@@ -23,21 +23,20 @@ main() {
 	[ "$help_flag" = 1 ] && usage
 	shift "$((OPTIND-1))"
 
-	# Default to 1 hours of backlog.
+	# Default to 1 hour of backlog.
 	: ${duration:=3600}
 	start=$(($(date +%s) - duration))
 
-	exec awk -v"start=$start" -v"all=$all" '
-		FNR == 1 && ARGC > 2 && do_print = 0
-		!do_print && $1 >= start {
-			do_print = 1
-			do_header = 1
+	exec awk -v "start=$start" -v "all=$all" '
+		FNR == 1 { print_line = 0 }
+		!print_line && $1 >= start {
+			print_line = print_header = 1
 		}
-		do_print && (all || !/^[0-9]+ <->/) {
-			if (do_header) {
+		print_line && (all || !/^[0-9]+ <->/) {
+			if (print_header) {
 				print nl "==> " FILENAME " <=="
 				nl = "\n"
-				do_header = 0
+				print_header = 0
 			}
 			print
 		}
