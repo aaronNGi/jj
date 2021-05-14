@@ -1,7 +1,7 @@
 #!/bin/sh
 
-prog_name=${0##*/}
-help_text="Usage: $prog_name [-a] [-h] [-y <n>] [-m <n>]
+arg0=${0##*/}
+help_text="Usage: $arg0 [-a] [-h] [-y <n>] [-m <n>]
                   [-d <n>] [-H <n>] [-M <n>] [<file>]...
 
 Catch up on jj IRC logs starting from a relative time back
@@ -15,9 +15,9 @@ Catch up on jj IRC logs starting from a relative time back
         -h      Display this help text and exit
 
  The final starting point in the logs, is the sum of all options. E.g.
- $prog_name -d 1 -d 1 -H 8 \#chan.log # 2 days and 8 hours. If no
+ $arg0 -d 1 -d 1 -H 8 \#chan.log # 2 days and 8 hours. If no
  starting point is set, 1 hour will be used. If no file arguments are
- given, $prog_name tries to use relevant log files from \$IRC_DIR."
+ given, $arg0 tries to use relevant log files from \$IRC_DIR."
 
 # Based on retail(1) by josuah.
 awkscript='BEGIN {
@@ -81,7 +81,7 @@ main() {
 usage() {
 	[ $# -ne 0 ] && {
 		exec >&2
-		printf '%s: %s\n\n' "$prog_name" "$*"
+		printf '%s: %s\n\n' "$arg0" "$*"
 	}
 	printf '%s\n' "$help_text"
 	exit ${1:+1}
