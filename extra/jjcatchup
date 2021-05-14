@@ -14,8 +14,10 @@ Catch up on jj IRC logs starting from a relative time back
         -M <n>  Start n minutes back
         -h      Display this help text and exit
 
-  The final starting point in the logs, is the sum of all options.
-  E.g. $prog_name -d 1 -d 1 -H 8 \#chan.log # 2 days and 8 hours"
+ The final starting point in the logs, is the sum of all options. E.g.
+ $prog_name -d 1 -d 1 -H 8 \#chan.log # 2 days and 8 hours. If no
+ starting point is set, 1 hour will be used. If no file arguments are
+ given, $prog_name tries to use relevant log files from \$IRC_DIR."
 
 # Based on retail(1) by josuah.
 awkscript='BEGIN {
@@ -52,6 +54,22 @@ main() {
 	parse_options "$@"
 	[ "$help_flag" = 1 ] && usage
 	shift "$((OPTIND-1))"
+
+	# Without file arguments, find log files with an mtime which falls
+	# into $duration.
+	[ $# -eq 0 ] && {
+		days=$((duration / 86400))
+		[ "$days" -eq 0 ] &&
+			days=1
+
+		set -- ${all:+-a} ${duration:+-M$((duration / 60))}
+
+		exec find "${IRC_DIR:-$HOME/irc}" \
+			-type f \
+			-name '*.log' \
+			-mtime "-$days" \
+			-exec "$0" "$@" {} +
+	}
 
 	# Default to 1 hour of backlog.
 	: ${duration:=3600}
