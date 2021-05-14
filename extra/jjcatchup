@@ -17,6 +17,36 @@ Catch up on jj IRC logs starting from a relative time back
   The final starting point in the logs, is the sum of all options.
   E.g. $prog_name -d 1 -d 1 -H 8 \#chan.log # 2 days and 8 hours"
 
+# Based on retail(1) by josuah.
+awkscript='BEGIN {
+	for (i = 1; i < ARGC; i++)
+		files[ARGV[i]] = ""
+
+	for (f in files)
+		if ((getline files[f] <f) <= 0)
+			delete files[f]
+
+	while (length(files) > 0) {
+		for (f in files)
+			if (!(min in files) || files[f] < files[min])
+				min = f
+
+		if (files[min] >= start &&
+			(all || files[min] !~ /^.{10} <->/))
+		{
+			if (last != min) {
+				print nl "==> " min " <=="
+				nl = "\n"
+				last = min
+			}
+			print(files[min])
+		}
+
+		if ((getline files[min] <min) <= 0)
+			delete files[min]
+	}
+}'
+
 main() {
 	unset duration all
 	parse_options "$@"
@@ -27,20 +57,7 @@ main() {
 	: ${duration:=3600}
 	start=$(($(date +%s) - duration))
 
-	exec awk -v "start=$start" -v "all=$all" '
-		FNR == 1 { print_line = 0 }
-		!print_line && $1 >= start {
-			print_line = print_header = 1
-		}
-		print_line && (all || !/^[0-9]+ <->/) {
-			if (print_header) {
-				print nl "==> " FILENAME " <=="
-				nl = "\n"
-				print_header = 0
-			}
-			print
-		}
-	' "$@"
+	exec awk -v "start=$start" -v "all=$all" "$awkscript" "$@"
 }
 
 usage() {
