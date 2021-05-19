@@ -12,7 +12,7 @@
 # argument list.
 
 arg0=${0##*/}
-fifo=${IRC_DIR:-$HOME/irc}/${IRC_HOST:-irc.freenode.org}/in
+fifo=${IRC_DIR:-$HOME/irc}/${IRC_HOST:-irc.libera.chat}/in
 
 ! [ "$1" ] && {
 	printf '%s: missing channel argument\n' "$arg0" >&2

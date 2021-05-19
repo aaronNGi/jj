@@ -128,10 +128,10 @@ Or:
 IRC_HOST=irc.rizon.net jjd
 ```
 
-By default `jjd(1)` connects to irc.freenode.org, using the current user
-as nickname and creates the directory "irc.freenode.org" in the current
-working directory. Located in that directory will be the various log
-files and the named pipe for input. For more information, see [Directory
+By default `jjd(1)` connects to irc.libera.chat, using the current user as
+nickname and creates the directory "irc.libera.chat" in the current
+working directory. Located in that directory will be the various log files
+and the named pipe for input. For more information, see [Directory
 Structure](#directory-structure) and [Input Commands](#input-commands).
 
 ### Printing a Log
@@ -139,7 +139,7 @@ Structure](#directory-structure) and [Input Commands](#input-commands).
 To save some typing, change into the directory of that new connection:
 
 ```shell
-cd irc.freenode.org
+cd irc.libera.chat
 ```
 
 To display the IRC output, the most basic would be to simply run:
@@ -182,10 +182,9 @@ See [Examples](#examples) for a more elaborate version of that input-loop.
 The following shows a typical channel structure tree created by jj irc.
 
 ```
-irc.freenode.org/
+irc.libera.chat/
 ├── channels/
 │   ├── #jj.log
-│   ├── freenode-connect.log
 │   └── nickserv.log
 ├── in
 ├── motd
@@ -250,7 +249,7 @@ supported by `jjc(1)`.
 |----------------|-----------------------------------------------------------------------------------|-------------------------|
 | `IRC_CLIENT`   | The program spawned as child of `jjd(1)` which handles all user and IRC messages. | `jjc`                   |
 | `IRC_DIR`      | Where to store the per-host directories.                                          | `.` (current directory) |
-| `IRC_HOST`     | The IRC host to connect to.                                                       | `irc.freenode.org`      |
+| `IRC_HOST`     | The IRC host to connect to.                                                       | `irc.libera.chat`       |
 | `IRC_NICK`     | The Nickname to use.                                                              | `$USER`                 |
 | `IRC_PASSWORD` | The server password.                                                              | unset                   |
 | `IRC_PORT`     | Connect using this port.                                                          | `6667`                  |
@@ -347,13 +346,13 @@ The following programs are supported:
 Using TLS via [s6-networking][s6 networking] utilities
 
 ```shell
-s6-tlsclient irc.freenode.org 6697 jjd
+s6-tlsclient irc.libera.chat 6697 jjd
 ```
 
 Or using SSL via netcat
 
 ```shell
-ncat -vv --ssl --ssl-verify -c 'exec 6<&0 7>&1; PROTO=lol jjd </dev/tty >/dev/tty' irc.freenode.org 6697
+ncat -vv --ssl --ssl-verify -c 'exec 6<&0 7>&1; PROTO=lol jjd </dev/tty >/dev/tty' irc.libera.chat 6697
 ```
 
 ### Automatic Reconnection
@@ -396,7 +395,7 @@ fifo=$IRC_DIR/$IRC_HOST/in
 [ -p "$fifo" ] && [ -w "$fifo" ] ||
 	exit 1
 
-if [ "$IRC_HOST" = irc.freenode.org ]; then
+if [ "$IRC_HOST" = irc.libera.chat ]; then
 	printf 'raw PRIVMSG NickServ :IDENTIFY jilles foo\n' >"$fifo"
 	sleep .5
 	printf 'join #jj\n' >"$fifo"
@@ -413,7 +412,7 @@ fi
 
 ### IRC
 
-Join `#jj` on irc.freenode.org
+Join `#jj` on irc.libera.chat
 
 [ii homepage]: https://tools.suckless.org/ii/
 [s6 networking]: https://skarnet.org/software/s6-networking/

@@ -2,7 +2,7 @@
 #define DEFAULT_DIR "."
 
 /* Host used when IRC_SERVER var is empty */
-#define DEFAULT_HOST "irc.freenode.org"
+#define DEFAULT_HOST "irc.libera.chat"
 
 /* Port used when IRC_PORT var is empty */
 #define DEFAULT_PORT "6667"
