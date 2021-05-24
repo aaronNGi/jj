@@ -63,7 +63,7 @@ BEGIN {
 	command["part"]      = "part"
 
 	# The support array stores information obtained from the ISUPPORT
-	# messages.
+	# messages and IRCv3 capabilities.
 	support["casemapping"] = "ascii"
 	support["chantypes"]   = "#&"
 	support["prefix"]      = "@+"
@@ -116,8 +116,8 @@ function handle_user_input()
 
 	if (cmd == "") { print_out("Missing command") }
 	else if (cmd == "action")   { cmd_msg("ACTION") }
-	else if (cmd == "away")     { cmd_generic("AWAY", 0, 0) }
 	else if (cmd == "me")       { cmd_msg("ACTION") }
+	else if (cmd == "away")     { cmd_generic("AWAY", 0, 0) }
 	else if (cmd == "invite")   { cmd_generic("INVITE", 2, 2) }
 	else if (cmd == "join")     { cmd_generic("JOIN", 1, 2) }
 	else if (cmd == "kick")     { cmd_generic("KICK", 2, 0, 3) }
@@ -175,6 +175,7 @@ cmd ~ /^37[256]$/     { on_motd();       next }
 cmd == "001"          { on_welcome();    next }
 cmd == "004"          { on_myinfo();     next }
 cmd == "005"          { on_isupport();   next }
+cmd == "CAP"          { on_cap();        next }
                       { on_generic();    next }
 
 # Split irc messages into the global arrays "tag", "source" and "param".
@@ -197,7 +198,7 @@ function parse_irc_input(    field, i, line, has_trailing, trailing)
 	}
 
 	# Parse source.
-	if ($field ~ /^ *:/) {
+	if ($field ~ /^:/) {
 		nsource = split(substr($field, 2), source, /[@!]/)
 		field++
 	} else {
@@ -303,6 +304,8 @@ function print_out(text, chan, nick, suffix,    file)
 function login(nick, user, name, pass)
 {
 	if (pass != "") send("PASS " pass)
+	send("CAP REQ :echo-message")
+	send("CAP END")
 	send("NICK " nick)
 	send("USER " user " localhost * :" name)
 }
@@ -554,7 +557,7 @@ function cmd_list(    chan, str)
 
 function cmd_msg(realcmd,    new, suffix, target, text)
 {
-	if(!NF) {
+	if (!NF) {
 		print_out(cmd ": not enough arguments")
 		return
 	} else if (index($1, ",")) {
@@ -592,6 +595,10 @@ function cmd_msg(realcmd,    new, suffix, target, text)
 			return
 		}
 	# Message to a user.
+	} else if (NF && support["IRCv3 echo-message"]) {
+		# With echo-message enabled, the channel will be created
+		# when we receive our own message from the server, instead
+		# of doing it manually.
 	} else {
 		# Create the channel by setting its members to us and the
 		# target.
@@ -618,6 +625,12 @@ function cmd_msg(realcmd,    new, suffix, target, text)
 			suffix = "*"
 		}
 		send(realcmd " " target " :" text)
+
+		# No need to simulate our own messages when the
+		# echo-message feature is supported.  We will receive it
+		# from the server.
+		if (support["IRCv3 echo-message"])
+			return
 
 		# Simulate our own message.
 		print_out($0, target, irc["nick"], suffix)
@@ -782,7 +795,7 @@ function on_msg(    char, ctcp, highlight, after, before,
 		# parameter must be a wildcard.  This is the case for
 		# server-wide notifications for instance.  Instead of
 		# using that wildcard as target channel, use source.
-		if (!(target in channels))
+		if (!is_me(source[1]) && !(target in channels))
 			target = irc_tolower(source[1])
 	}
 
@@ -847,6 +860,18 @@ function on_msg(    char, ctcp, highlight, after, before,
 
 	if (ctcp)
 		ext_command("ctcp", target, user, text)
+}
+
+function on_cap(    caps, i)
+{
+	if (toupper(param[nparam - 1]) == "ACK") {
+		print_out("Enabled IRCv3 capabilities: " param[nparam])
+
+		split(param[nparam], caps, " ")
+
+		for (i in caps)
+			support["IRCv3 " caps[i]] = 1
+	}
 }
 
 function on_mode(    i, user, target, text)
