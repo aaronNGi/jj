@@ -283,16 +283,7 @@ function send(text)
 
 function print_out(text, chan, nick, suffix,    file)
 {
-	# Because "chan" will be used as name for the logfile, we can't
-	# allow it to contain slashes and the null character.  Might as
-	# well remove all control characters while we are at it.
-	gsub("[/[:cntrl:]]", "", chan)
-
-	# Figure out the target file.
-	if (chan == "" || chan == irc["host"])
-		file = irc["logdir"] "/server.log"
-	else
-		file = irc["logdir"] "/channels/" chan ".log"
+	file = chan_to_filename(chan)
 
 	if (nick == "" || nick == irc["host"])
 		nick = "-"
@@ -365,6 +356,26 @@ function nick_in_chan(nick, chan)
 		" " irc_tolower(nick) " ")
 }
 
+function chan_to_filename(chan)
+{
+	# Because "chan" will be used as name for the logfile, we can't
+	# allow it to contain slashes and the null character.  Might as
+	# well remove all control characters while we are at it.
+	gsub("[/[:cntrl:]]", "", chan)
+
+	# Figure out the target file.
+	if (chan == "" || chan == irc["host"])
+		return irc["logdir"] "/server.log"
+	else
+		return irc["logdir"] "/channels/" chan ".log"
+}
+
+function delete_chan(chan)
+{
+	delete channels[chan]
+	return close(chan_to_filename(chan))
+}
+
 function _chan_add(str, chan)
 {
 	# Channel has no users.  We can just set the channel to "str"
@@ -431,7 +442,7 @@ function delete_nick_from_chan(nick, chan, text)
 	if (!is_chan(chan) || nick == irc["nick_lc"]) {
 		print_out("Closed channel: " chan)
 		print_out("Channel closed", chan)
-		delete channels[chan]
+		delete_chan(chan)
 		return 1
 	} else {
 		return _chan_del(" " nick " ", chan)
@@ -456,7 +467,7 @@ function delete_nick_from_all_chans(nick, text,    chan, str)
 		if (!is_chan(chan) || nick == irc["nick_lc"]) {
 			print_out("Closed channel: " chan)
 			print_out("Channel closed", chan)
-			delete channels[chan]
+			delete_chan(chan)
 			continue
 		}
 
@@ -484,7 +495,7 @@ function rename_nick_in_all_chans(nick, new, text,    chan, me)
 		if (!is_chan(chan) && !me) {
 			print_out("Closed channel: " chan)
 			print_out("Channel closed", chan)
-			delete channels[chan]
+			delete_chan(chan)
 			continue
 		}
 
@@ -717,7 +728,7 @@ function cmd_part(    chan)
 		}
 		print_out("Closed channel: " chan)
 		print_out("Channel closed", chan)
-		delete channels[chan]
+		delete_chan(chan)
 		ext_command("part", chan, irc["nick"])
 	} else {
 		cmd_generic("PART", 1, 0, 2)
@@ -1258,7 +1269,7 @@ function on_nosuchnick(    nick, nick_lc, text)
 		print_out(nick ": " text, nick_lc)
 		print_out("Closed channel: " nick)
 		print_out("Channel closed", nick)
-		delete channels[nick]
+		delete_chan(nick)
 	}
 }
 
