@@ -106,7 +106,7 @@ BEGIN {
 	if (NF < 2) {
 		printf "\n%s", $0
 		lastnick = ""
-		fflush()
+		fflush("/dev/stdout")
 		next
 	}
 
@@ -139,7 +139,7 @@ BEGIN {
 	if (ENVIRON["JJ_SERVERLOG"] != "") {
 		printf "\n\033[%sm%s\033[%sm %s",
 			time_color, time, color["status_msg_srv"], msg
-		fflush()
+		fflush("/dev/stdout")
 		next
 	}
 
@@ -182,5 +182,5 @@ BEGIN {
 
 	printf "\n\033[%sm%s\033[0m \033[%sm%10s\033[0m  \033[%sm%s\033[0m",
 		time_color, time, nick_color, nick, msg_color, msg
-	fflush()
+	fflush("/dev/stdout")
 } END { print "" }
