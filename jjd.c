@@ -174,7 +174,6 @@ get_username()
 		die("cannot get username:");
 
 	return pw->pw_name;
-	
 }
 
 static const char *
@@ -267,7 +266,6 @@ main(int argc, char **argv)
 		tv.tv_usec = 0;
 
 		FD_SET(sock_in,  &rdset);
-		FD_SET(sock_out, &rdset);
 		FD_SET(fifo_fd,  &rdset);
 
 		n = select(max_fd + 1, &rdset, NULL, NULL, &tv);
