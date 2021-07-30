@@ -25,6 +25,7 @@
 #define IRC_MSG_MAX 512
 
 static const char *prog;
+static const int *pipe_fd;
 
 static void
 die(const char *fmt, ...)
@@ -101,27 +102,27 @@ read_line(FILE *fp, char *buf, size_t bufsize)
 }
 
 static void
-input_from_socket(FILE *fp, int pipe_fd)
+input_from_socket(FILE *fp)
 {
 	char buf[IRC_MSG_MAX];
 
 	if (read_line(fp, buf, sizeof buf))
 		die("remote host closed the connection");
 
-	if (dprintf(pipe_fd, "i %ju %s\n", (uintmax_t)time(NULL), buf) < 0)
+	if (dprintf(*pipe_fd, "i %ju %s\n", (uintmax_t)time(NULL), buf) < 0)
 		die("cannot write to client:");
 
 }
 
 static void
-input_from_fifo(FILE *fp, int pipe_fd)
+input_from_fifo(FILE *fp)
 {
 	char buf[IRC_MSG_MAX];
 
 	if (read_line(fp, buf, sizeof buf))
 		die("failed reading fifo:");
 
-	if (dprintf(pipe_fd, "u %ju %s\n", (uintmax_t)time(NULL), buf) < 0)
+	if (dprintf(*pipe_fd, "u %ju %s\n", (uintmax_t)time(NULL), buf) < 0)
 		die("cannot write to client:");
 }
 
@@ -132,6 +133,13 @@ handle_sig_child(int sig)
 		abort();
 
 	die("child died\n");
+}
+
+static void
+handle_sig_usr1(int sig)
+{
+	if (dprintf(*pipe_fd, "s %ju SIGUSR1\n", (uintmax_t)time(NULL)) < 0)
+		die("cannot write to client:");
 }
 
 /* fifo is opened read and write, so there is never EOF */
@@ -193,7 +201,33 @@ main(int argc, char **argv)
 	int child_pipe[2];
 	time_t trespond;
 	fd_set rdset;
+	sigset_t masked, not_masked;
+	struct sigaction sa;
+
 	prog = argc ? argv[0] : "jjd";
+
+	/* Signals will be caught sequentially,
+	 * never interrupting each other. */
+
+	sigemptyset(&masked);
+	sigaddset(&masked, SIGCHLD);
+	sigaddset(&masked, SIGUSR1);
+
+	/* Enter safe region and get "vulnerable" sigset. */
+
+	sigprocmask(SIG_BLOCK, &masked, &not_masked);
+
+	memset(&sa, 0, sizeof (sa));
+	sa.sa_handler = handle_sig_child;
+	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+	sa.sa_mask = masked;
+	sigaction(SIGCHLD, &sa, NULL);
+
+	memset(&sa, 0, sizeof (sa));
+	sa.sa_handler = handle_sig_usr1;
+	sa.sa_flags = SA_RESTART;
+	sa.sa_mask = masked;
+	sigaction(SIGUSR1, &sa, NULL);
 
 	const char *ircdir = set_var("IRC_DIR",    DEFAULT_DIR);
 	const char *host   = set_var("IRC_HOST",   DEFAULT_HOST);
@@ -209,13 +243,11 @@ main(int argc, char **argv)
 	if (fifo_fd <= 2)
 		abort();
 
-	signal(SIGCHLD, handle_sig_child);
-
 	if (pipe(child_pipe))
 		die("pipe:");
 
 	if (getenv("PROTO") == 0) {
-		/* dies if cannot connect */
+		/* Dies if cannot connect. */
 		sock_in = sock_out = dial(host, port);
 	} else {
 		/* UCSPI sockets */
@@ -241,6 +273,7 @@ main(int argc, char **argv)
 		die("execlp '%s':", cmd);
 	}
 	close(child_pipe[0]);
+	pipe_fd = &child_pipe[1];
 
 	trespond = time(NULL);
 
@@ -260,15 +293,15 @@ main(int argc, char **argv)
 
 	for (;;) {
 		int n;
-		struct timeval tv;
+		struct timespec tv;
 
 		tv.tv_sec = 120;
-		tv.tv_usec = 0;
+		tv.tv_nsec = 0;
 
 		FD_SET(sock_in,  &rdset);
 		FD_SET(fifo_fd,  &rdset);
 
-		n = select(max_fd + 1, &rdset, NULL, NULL, &tv);
+		n = pselect(max_fd + 1, &rdset, NULL, NULL, &tv, &not_masked);
 
 		if (n < 0) {
 			if (errno == EINTR)
@@ -285,11 +318,11 @@ main(int argc, char **argv)
 
 		if (FD_ISSET(sock_in, &rdset)) {
 			trespond = time(NULL);
-			input_from_socket(sock_fp, child_pipe[1]);
+			input_from_socket(sock_fp);
 		}
 
 		if (FD_ISSET(fifo_fd, &rdset)) {
-			input_from_fifo(fifo_fp, child_pipe[1]);
+			input_from_fifo(fifo_fp);
 		}
 	}
 }
