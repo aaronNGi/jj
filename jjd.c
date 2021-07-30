@@ -22,6 +22,7 @@
 
 #include "config.h"
 
+#define max(a,b) ((a) < (b) ? (b) : (a))
 #define IRC_MSG_MAX 512
 
 static const char *prog;
@@ -196,7 +197,7 @@ set_var(const char *name, const char *def)
 int
 main(int argc, char **argv)
 {
-	int sock_in, sock_out, fifo_fd, max_fd;
+	int sock_in, sock_out, fifo_fd;
 	FILE *sock_fp, *fifo_fp;
 	int child_pipe[2];
 	time_t trespond;
@@ -287,10 +288,6 @@ main(int argc, char **argv)
 	if (fifo_fp == NULL)
 		die("could not setup buffering on fifo fd%d", fifo_fd);
 
-	max_fd = fifo_fd;
-	if (max_fd < sock_out)
-		max_fd = sock_out;
-
 	for (;;) {
 		int n;
 		struct timespec tv;
@@ -301,7 +298,8 @@ main(int argc, char **argv)
 		FD_SET(sock_in,  &rdset);
 		FD_SET(fifo_fd,  &rdset);
 
-		n = pselect(max_fd + 1, &rdset, NULL, NULL, &tv, &not_masked);
+		n = pselect(max(sock_in, fifo_fd) + 1, &rdset,
+			NULL, NULL, &tv, &not_masked);
 
 		if (n < 0) {
 			if (errno == EINTR)
