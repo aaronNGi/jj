@@ -313,9 +313,9 @@ message.
  Log Rotation
 --------------------------------------------------------------------------
 
-When `jjd(1)` receives a `SIGUSR1`,it will send `s <timestamp> SIGUSR1` to
-`$IRC_CLIENT`. By default, `jjc(1)` will close all its open log files when
-receiving that message. That way, any new messages after that will
+When `jjd(1)` receives a `SIGUSR1`, it will send `s <timestamp> SIGUSR1`
+to `$IRC_CLIENT`. By default, `jjc(1)` will close all its open log files
+when receiving that message. That way, any new messages after that will
 automatically reopen the log files at their original location, completing
 the log rotation process.
 
