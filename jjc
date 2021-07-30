@@ -2,9 +2,10 @@
 #
 # This script parses irc messages and user input and maintains logs of all
 # channels and private messages.
-# Messages are read from stdin.  Messages prefixed with "u " are
-# considered user input, while "i " signals an irc message.  Processed
-# user input is printed to stdout.
+# Messages are read from stdin. Messages prefixed with "u " are
+# considered user input, while "i " denotes irc messages. Messages
+# prefixed with "s " are signals. Processed user input is printed to
+# stdout.
 
 BEGIN {
 	# The individual parts of an irc messages are separated by
@@ -82,11 +83,12 @@ BEGIN {
 }
 
 # Ignore malformed lines.
-!/^[iu] [0-9]+ ./ { next }
+!/^[isu] [0-9]+ ./ { next }
 
 # Our parent process receives the raw irc messages and reads user input.
 # Before sending it to us, the read lines are marked with a leading "u"
-# and "i" for user and irc respectively.
+# and "i" for user and irc respectively. Signals received by our parent
+# are send as text prefixed with "s".
 /^u / {
 	debug_usr()
 
@@ -136,6 +138,18 @@ function handle_user_input()
 	else if (cmd == "topicset") { cmd_generic("TOPIC", 1, 0, 2) }
 	else if (cmd == "whois")    { cmd_generic("WHOIS", 1, 0) }
 	else { print_out("Unknown command: " cmd) }
+}
+
+/^s / {
+	time = $2
+	signal = $3
+
+	# Reopen logs at their original location after log rotation.
+	if (signal == "SIGUSR1") {
+		print_out("Reopening all log files due to SIGUSR1")
+		close_all()
+	}
+	next
 }
 
 # Before actual handling of the various message types, the raw irc
@@ -273,6 +287,15 @@ function debug_irc()
 				i, param[i] >"/dev/stderr"
 
 	printf "\n" >"/dev/stderr"
+}
+
+function close_all()
+{
+	for (chan in channels)
+		close(chan_to_filename(chan))
+
+	# Also close server.log.
+	close(chan_to_filename())
 }
 
 function send(text)
