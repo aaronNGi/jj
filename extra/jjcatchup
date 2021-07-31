@@ -111,14 +111,12 @@ parse_options() {
 		esac
 
 		case $_opt in
-			y) factor=31536000 ;;
-			m) factor=2592000 ;;
-			d) factor=86400 ;;
-			H) factor=3600 ;;
-			M) factor=60 ;;
+			y) duration=$((OPTARG * 31536000 + duration)) ;;
+			m) duration=$((OPTARG * 2592000 + duration)) ;;
+			d) duration=$((OPTARG * 86400 + duration)) ;;
+			H) duration=$((OPTARG * 3600 + duration)) ;;
+			M) duration=$((OPTARG * 60 + duration)) ;;
 		esac
-
-		duration=$((OPTARG * factor + duration))
 	done
 }
 
