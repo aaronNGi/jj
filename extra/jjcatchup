@@ -1,12 +1,13 @@
 #!/bin/sh
 
 arg0=${0##*/}
-help_text="Usage: $arg0 [-a] [-h] [-y <n>] [-m <n>]
+help_text="Usage: $arg0 [-a] [-A] [-h] [-y <n>] [-m <n>]
                   [-d <n>] [-H <n>] [-M <n>] [<file>]...
 
 Catch up on jj IRC logs starting from a relative time back
 
-	-a      Show all messages instead of filtering status messages
+        -a      Show all messages instead of filtering status messages
+        -A      Show almost all messages (includes important messages)
         -y <n>  Start n years back
         -m <n>  Start n months back
         -d <n>  Start n days back
@@ -21,6 +22,9 @@ Catch up on jj IRC logs starting from a relative time back
 
 # Based on retail(1) by josuah.
 awkscript='BEGIN {
+	# Important status messages have a type suffix after "<->".
+	filter = "^.{10} <->" (All ? " " : "")
+
 	for (i = 1; i < ARGC; i++)
 		files[ARGV[i]] = ""
 
@@ -34,7 +38,7 @@ awkscript='BEGIN {
 				min = f
 
 		if (files[min] >= start &&
-			(all || files[min] !~ /^.{10} <->/))
+			(all || files[min] !~ filter))
 		{
 			if (last != min) {
 				print nl "==> " min " <=="
@@ -50,7 +54,7 @@ awkscript='BEGIN {
 }'
 
 main() {
-	unset duration all
+	unset duration all All
 	parse_options "$@"
 	[ "$help_flag" = 1 ] && usage
 	shift "$((OPTIND-1))"
@@ -62,11 +66,11 @@ main() {
 		[ "$days" -eq 0 ] &&
 			days=1
 
-		set -- ${all:+-a} ${duration:+-M$((duration / 60))}
+		set -- ${all:+-a} ${All:+-A} ${duration:+-M$((duration / 60))}
 
 		exec find "${IRC_DIR:-$HOME/irc}" \
 			-type f \
-			-name '*.log' \
+			-name "*.log" \
 			-mtime "-$days" \
 			-exec "$0" "$@" {} +
 	}
@@ -75,7 +79,11 @@ main() {
 	: ${duration:=3600}
 	start=$(($(date +%s) - duration))
 
-	exec awk -v "start=$start" -v "all=$all" "$awkscript" "$@"
+	exec awk \
+		-v "start=$start" \
+		-v "all=$all" \
+		-v "All=$All" \
+		"$awkscript" "$@"
 }
 
 usage() {
@@ -88,12 +96,13 @@ usage() {
 }
 
 parse_options() {
-	while getopts ":ahy:m:d:H:M:" _opt; do
+	while getopts ":Aahy:m:d:H:M:" _opt; do
 		case $_opt in
 			:) usage "option '$OPTARG' requires a parameter" ;;
 			\?) usage "unrecognized option '$OPTARG'" ;;
 			h) help_flag=1 ;;
 			a) all=1 ;;
+			A) All=1 ;;
 			*)
 				case $OPTARG in *[!0-9]*|"")
 					usage "Invalid number '$OPTARG'" ;;
@@ -102,12 +111,14 @@ parse_options() {
 		esac
 
 		case $_opt in
-			y) duration=$((OPTARG * 31536000 + duration)) ;;
-			m) duration=$((OPTARG * 2592000 + duration)) ;;
-			d) duration=$((OPTARG * 86400 + duration)) ;;
-			H) duration=$((OPTARG * 3600 + duration)) ;;
-			M) duration=$((OPTARG * 60 + duration)) ;;
+			y) factor=31536000 ;;
+			m) factor=2592000 ;;
+			d) factor=86400 ;;
+			H) factor=3600 ;;
+			M) factor=60 ;;
 		esac
+
+		duration=$((OPTARG * factor + duration))
 	done
 }
 
