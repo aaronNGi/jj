@@ -278,6 +278,7 @@ variables are also available to the called program:
 |----------------|-------------|
 | `JJ_SERVERLOG` | When not empty, `jjp(1)` will print status messages using the default color.
 | `JJ_DEBUG`     | When not emtpy, `jjc(1)` will print debug output.
+| `NO_COLOR`     | Prevent `jjp(1)` from printing colors.
 
 
  Log Format

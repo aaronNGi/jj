@@ -1,20 +1,25 @@
 #!/usr/bin/awk -f
 
 BEGIN {
-	color["red"]            = 31
-	color["white"]          = 37
-	color["default"]        = 0
-	color["dark_gray"]      = "38;5;8"
+	no_color = "NO_COLOR" in ENVIRON
 
-	color["header"]         = color["default"]
-	color["time"]           = color["dark_gray"]
-	color["time_highlight"] = color["red"]
-	color["others_msg"]     = color["default"]
-	color["self_nick"]      = color["white"]
-	color["self_msg"]       = color["default"]
-	color["status_nick"]    = color["dark_gray"]
-	color["status_msg"]     = color["dark_gray"]
-	color["status_msg_srv"] = color["default"]
+	if (!no_color) {
+		color["red"]            = "\033[31m"
+		color["white"]          = "\033[37m"
+		color["default"]        = "\033[m"
+		color["dark_gray"]      = "\033[38;5;8m"
+		color["reset"]          = "\033[m"
+
+		color["header"]         = color["default"]
+		color["time"]           = color["dark_gray"]
+		color["time_highlight"] = color["red"]
+		color["others_msg"]     = color["default"]
+		color["self_nick"]      = color["white"]
+		color["self_msg"]       = color["default"]
+		color["status_nick"]    = color["dark_gray"]
+		color["status_msg"]     = color["dark_gray"]
+		color["status_msg_srv"] = color["default"]
+	}
 }
 
 function isleap(year)
@@ -82,8 +87,8 @@ function tz(   cmd, date, h, m)
 
 function print_header(text)
 {
-	printf "%s\033[%sm%s\033[0m",
-		(NR != 1 ? "\n\n" : ""), color["header"], text
+	printf "%s%s%s%s",
+		(NR != 1 ? "\n\n" : ""), color["header"], text, color["reset"]
 }
 
 BEGIN {
@@ -137,34 +142,36 @@ BEGIN {
 	# When JJ_SERVERLOG is set, print messages without nick and in a
 	# different color.
 	if (ENVIRON["JJ_SERVERLOG"] != "") {
-		printf "\n\033[%sm%s\033[%sm %s",
-			time_color, time, color["status_msg_srv"], msg
+		printf "\n%s%s%s %s%s",
+			time_color, time, color["status_msg_srv"], msg, color["reset"]
 		fflush("/dev/stdout")
 		next
 	}
 
-	# Status message.
-	if (nick == "-") {
-		nick_color = color["status_nick"]
-		msg_color = color["status_msg"]
+	if (!no_color) {
+		# Status message.
+		if (nick == "-") {
+			nick_color = color["status_nick"]
+			msg_color = color["status_msg"]
 
-	# My message.
-	} else if (index(type, "*")) {
-		nick_color = color["self_nick"]
-		msg_color = color["self_msg"]
+		# My message.
+		} else if (index(type, "*")) {
+			nick_color = color["self_nick"]
+			msg_color = color["self_msg"]
 
-	# Other message.
-	} else {
-		# Calculate nick color if necessary.
-		if ((nick_color = nick_colors[nick]) == "") {
-			i = 1
-			sum = 0
-			while (char = substr(nick, i++, 1))
-				sum = sum + char_to_num[char]
+		# Other message.
+		} else {
+			# Calculate nick color if necessary.
+			if ((nick_color = nick_colors[nick]) == "") {
+				i = 1
+				sum = 0
+				while (char = substr(nick, i++, 1))
+					sum = sum + char_to_num[char]
 
-			nick_color = nick_colors[nick] = "38;5;" sum % 232
+				nick_color = nick_colors[nick] = "38;5;" sum % 232
+			}
+			msg_color = color["others_msg"]
 		}
-		msg_color = color["others_msg"]
 	}
 
 	# Message grouping.
@@ -180,7 +187,9 @@ BEGIN {
 		nick = "*"
 	}
 
-	printf "\n\033[%sm%s\033[0m \033[%sm%10s\033[0m  \033[%sm%s\033[0m",
-		time_color, time, nick_color, nick, msg_color, msg
+	printf "\n%s%s%s %s%10s%s  %s%s%s",
+		time_color, time, color["reset"],
+		nick_color, nick, color["reset"],
+		msg_color, msg, color["reset"]
 	fflush("/dev/stdout")
 } END { print "" }
