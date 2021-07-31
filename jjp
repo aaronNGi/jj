@@ -4,11 +4,11 @@ BEGIN {
 	no_color = "NO_COLOR" in ENVIRON
 
 	if (!no_color) {
-		color["red"]            = "\033[31m"
-		color["white"]          = "\033[37m"
-		color["default"]        = "\033[m"
-		color["dark_gray"]      = "\033[38;5;8m"
-		color["reset"]          = "\033[m"
+		color["red"]            = sprintf("\033[31m")
+		color["white"]          = sprintf("\033[37m")
+		color["default"]        = sprintf("\033[m")
+		color["dark_gray"]      = sprintf("\033[38;5;8m")
+		color["reset"]          = sprintf("\033[m")
 
 		color["header"]         = color["default"]
 		color["time"]           = color["dark_gray"]
@@ -87,8 +87,8 @@ function tz(   cmd, date, h, m)
 
 function print_header(text)
 {
-	printf "%s%s%s%s",
-		(NR != 1 ? "\n\n" : ""), color["header"], text, color["reset"]
+	printf "%s%s%s%s", (NR != 1 ? "\n\n" : ""),
+		color["header"], text, color["reset"]
 }
 
 BEGIN {
@@ -143,7 +143,8 @@ BEGIN {
 	# different color.
 	if (ENVIRON["JJ_SERVERLOG"] != "") {
 		printf "\n%s%s%s %s%s",
-			time_color, time, color["status_msg_srv"], msg, color["reset"]
+			time_color, time, color["status_msg_srv"],
+			msg, color["reset"]
 		fflush("/dev/stdout")
 		next
 	}
@@ -168,7 +169,8 @@ BEGIN {
 				while (char = substr(nick, i++, 1))
 					sum = sum + char_to_num[char]
 
-				nick_color = nick_colors[nick] = "38;5;" sum % 232
+				nick_color = nick_colors[nick] = \
+					sprintf("\033[38;5;%dm", sum % 232)
 			}
 			msg_color = color["others_msg"]
 		}
