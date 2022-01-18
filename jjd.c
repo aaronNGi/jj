@@ -28,6 +28,27 @@
 static const char *prog;
 static const int *pipe_fd;
 
+#if defined(__sun) && defined(__SVR4)
+int
+dprintf(int fd, const char *restrict format, ...)
+{
+	// As of January 2022, illumos does not have dprintf
+	// yet (see man printf). Provide a wrapper:
+        va_list ap;
+        FILE *f = fdopen(fd, "w");
+
+        if (!f) {
+                return -1;
+        }
+
+        va_start(ap, format);
+        int result = fprintf(f, format, ap);
+        va_end(ap);
+
+        return result;
+}
+#endif
+
 static void
 die(const char *fmt, ...)
 {
