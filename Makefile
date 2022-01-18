@@ -1,6 +1,6 @@
 PREFIX = /usr
 INCS = -I. -I/usr/include
-LIBS = -L/usr/lib -lc
+LIBS = -L/usr/lib -lc -lsocket
 
 CC = cc
 CPPFLAGS = -D_POSIX_C_SOURCE=200809L
